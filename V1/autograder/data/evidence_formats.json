@@ -1,0 +1,26 @@
+{
+  "_about": "How the checker recognises phase evidence written in different styles. Edit these lists (not code) when students use a new variant. Names are compared after normalising: lowercase, and spaces, '-', '_' and '/' removed.",
+  "evidence_files": {
+    "prompt":       {"stems": ["prompt", "workorder"],                 "exts": [".md", ".markdown", ".txt"]},
+    "agent-report": {"stems": ["agentreport", "finalreport", "report"], "exts": [".md", ".markdown", ".txt"]},
+    "human-gate":   {"stems": ["humangate", "gate"],                   "exts": [".md", ".markdown", ".txt"]},
+    "commit.txt":   {"stems": ["commit", "commithash", "acceptedcommit"], "exts": [".txt", ".md", ""]}
+  },
+  "report_fields": {
+    "STATUS":                 ["status"],
+    "OWNER":                  ["owner", "owners", "owning agent", "owning agents"],
+    "WORK ORDER":             ["work order"],
+    "FILES CREATED":          ["files created", "created files", "new files", "files added", "added files"],
+    "FILES MODIFIED":         ["files modified", "modified files", "files changed", "changed files", "files updated", "updated files"],
+    "COMMANDS RUN":           ["commands run", "commands executed", "executed commands", "commands"],
+    "TEST RESULTS":           ["test results", "tests run", "testing results"],
+    "VALIDATION RESULTS":     ["validation results", "validation"],
+    "ASSUMPTIONS":            ["assumptions"],
+    "RISKS":                  ["risks"],
+    "MANUAL ACTION REQUIRED": ["manual action required", "manual actions required", "manual action", "manual actions"],
+    "BLOCKED-ON OWNER":       ["blocked on owner"],
+    "BLOCKED-ON EVIDENCE":    ["blocked on evidence"],
+    "NEXT GATE":              ["next gate"]
+  },
+  "status_values": ["COMPLETE", "COMPLETED", "BLOCKED-ON", "BLOCKED ON", "BLOCKED", "FAILED"]
+}

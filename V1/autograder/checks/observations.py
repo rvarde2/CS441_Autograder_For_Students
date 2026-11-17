@@ -73,6 +73,20 @@ def observe(repo, out):
                  for p, v in sorted(found_by_phase.items())],
                 data=found_by_phase)
 
+    # Index (JSON only): where each AREA of the project lives, so a later grading step can build a
+    # category's reading list without searching. Paths only.
+    areas = {"terraform": lambda t: t.endswith((".tf", ".tfvars")),
+             "docs": lambda t: t.startswith("docs/") and not t.startswith("docs/agent-runs/") and t.endswith(".md"),
+             "reports": lambda t: t.startswith("reports/"),
+             "experiments": lambda t: t.startswith(("experiments/", "load-tests/")),
+             "evaluation": lambda t: "eval" in t.lower() and not t.startswith("docs/agent-runs/"),
+             "incidents": lambda t: "incident" in t.lower() and not t.startswith(".claude/"),
+             "readme": lambda t: PurePosixPath(t).name.lower() == "readme.md"}
+    for name, test in areas.items():
+        out.record("areas", name, value=sorted(t for t in repo.tracked if test(t)))
+    out.record("areas", "modules", value=sorted({"/".join(PurePosixPath(t).parts[:2]) for t in repo.tracked
+                                                 if t.startswith("modules/") and len(PurePosixPath(t).parts) > 2}))
+
     # X06: folder layout, depth <= 2, file counts. Folder names only; no file names.
     layout = Counter()
     for t in repo.tracked:

@@ -46,6 +46,8 @@ def tests(repo, out):
             elif all(TRIVIAL.search(l) for l in asserts):
                 weak.append(f"{t}:{s + 1}: only trivial assertions (non-null/true)  {lines[s].strip()[:60]}")
     meaningful = total - len(weak)
+    out.record("tests", value={"files": {f: n for f, n in sorted(per_file.items()) if n},
+                               "trivial": [w.split(": ", 1)[0] for w in weak]})
     # X05 (observation, due from phase 0): test counts over time, to tune the 25-test check.
     out.add("X05", "Observation: test counts (to tune T01)", "INFO",
             [f"{total} found, {len(weak)} trivial, {meaningful} counted"], due=0,

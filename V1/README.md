@@ -1,6 +1,7 @@
 # ScholarChain self-check
 
-An **advisory** checker for your ScholarChain repository. Run it as often as you like while you
+An **advisory** checker for **your own project repository** (your implementation of the
+ScholarChain assignment, not the assignment repository). Run it as often as you like while you
 work. **It is not your grade.** It checks facts that a script can verify (files, git history,
 phase evidence, secrets, copying), so you find problems early, not at submission time.
 
@@ -24,7 +25,28 @@ Needs Python 3.8+ and git. Nothing to install. Runs offline (except the optional
 Results are printed and saved in `./selfcheck-results/` (always outside your repository):
 - `selfcheck-<NetID>.csv`: one row per check (opens in Excel / Google Sheets). **This is the file
   to share** when your instructor asks for results.
-- `selfcheck-results.json`: the same results for tools.
+- `selfcheck-results.json`: the same results plus an index of where your files are, for tools.
+  **Keep it on your computer; don't send it.** Only the CSV is ever shared.
+
+## What's new in 1.0.1
+
+After the first student feedback (thank you):
+
+- **Evidence written in other styles is accepted**: several reports per phase (`agent-report-01.md`,
+  `agent-report-02.md`), folder names like `phase_03`, report fields as `**Bold:**` labels,
+  `## Headings` or a table, and common synonyms. A style the checker doesn't recognise is now a
+  `warn`, not a FAIL.
+- **Fewer false alarms**: hooks written as `"$CLAUDE_PROJECT_DIR"/...` are found; strict mode set in a
+  sourced `scripts/lib/...` library counts; guard patterns split across lines are read; S3 paths built
+  from variables (`s"s3://$bucket"`) are not "hard-coded"; prose in reports (`.collect()`, `Spark/Hadoop`)
+  is no longer taken for file names.
+- **Now warnings instead of FAILs**: a committed `.tfvars` (make sure it holds no secrets), an
+  ownership table the checker can't read, a human gate that doesn't repeat the hash when `commit.txt`
+  has it, and missing gate/commit files in the phase you're still working on.
+- **New**: a warning when commits are labelled for a phase that has no `docs/agent-runs` folder.
+- **Share only the CSV.** The JSON now also lists where your files are, for tools: keep it local.
+
+If you ran 1.0.0: `git pull` and run again.
 
 ## Reading the result
 
@@ -54,6 +76,9 @@ The exit code is 1 if any check that is already due FAILs, otherwise 0.
   with what that phase's commits actually changed.
 - `human-gate.md` states the decision (accepted/rejected) and the accepted commit hash, the same
   one as in `commit.txt`.
+- Name and style variants are fine: `agent-report-01.md` (several reports per phase), `phase_03/`,
+  `## Files Created` headings, **bold** labels, a table of fields, a GitHub commit URL in the gate.
+  If the checker doesn't recognise your style you get a `warn`, not a FAIL (DESIGN.md section 8.7).
 
 ## Following the tutorial vs copying it
 
@@ -113,7 +138,7 @@ and the file names/lines each problem was found at, not your files' contents.
 | G03 | Commit messages identify the phase (e.g. 'phase-06 spark-engineer: ...') | 0 |
 | K01 | No secrets in the current files (tracked by git) | 0 |
 | K02 | No secrets anywhere in git history (deleted secrets are still leaked) | 0 |
-| K03 | No .env, Terraform state, tfvars or key files committed | 0 |
+| K03 | No .env, Terraform state or key files committed (tfvars: review) | 0 |
 | K04 | A .gitignore is present (Git logistics: 'Include a complete .gitignore') | 2 |
 | E01 | Agent reports have every required field and a valid STATUS | 0 |
 | E02 | Each report's OWNER is an existing agent | 0 |
@@ -160,3 +185,4 @@ and the file names/lines each problem was found at, not your files' contents.
 | X04 | Observation: tutorial similarity of each control-plane file (to tune C01/C02 cut-offs) | observation |
 | X05 | Observation: test counts (to tune T01) | observation |
 | X06 | Observation: folder layout (folders to depth 2, tracked file counts) | observation |
+| X07 | Observation: report label styles recognised (colon, bold, heading, table) | observation |

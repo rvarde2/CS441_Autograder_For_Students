@@ -1,7 +1,9 @@
 # CS441 ScholarChain Autograder: V1 design
 
-Version 1.0.0. How the self-check works and exactly how each check decides, for students and
-course staff. How to run it is in `README.md`.
+Version 1.0.1. How the self-check works and exactly how each check decides, for students and
+course staff. How to run it is in `HOW_TO_RUN.md`; what changed in 1.0.1 is in `README.md`.
+It checks a student's OWN project repository (their implementation of the ScholarChain
+assignment), not the ScholarChain assignment repository.
 
 ## 1. Purpose and scope
 
@@ -91,9 +93,11 @@ V1/
 │   │   └── observations.py      X-checks: record what students do where the README is ambiguous
 │   ├── manifest.py         safe reader for datasets/dataset-manifest.yaml (structure only)
 │   ├── sources.py          non-comment lines of tracked source files (for H01, A01, V01)
+│   ├── evidence.py         TOLERANT reading of phase evidence: file-name variants, label styles, claimed paths
 │   └── data/
 │       ├── tutorial_fingerprints.json   line hashes of the tutorial, pinned commit
-│       └── phase_requirements.json      the requirements table: one row per check, each quoting the README
+│       ├── phase_requirements.json      the requirements table: one row per check, each quoting the README
+│       └── evidence_formats.json        accepted evidence file names, report label synonyms, STATUS values
 ├── README.md, DESIGN.md, VERSION
 ```
 
@@ -149,11 +153,23 @@ levels below it, gets a message naming the folder to use instead of a wall of FA
 
 JSON (`--json`, saved by `selfcheck.sh` to `selfcheck-results/selfcheck-results.json`):
 ```json
-{ "version": "1.0.0", "repo": "<folder name only>", "current_phase": 2,
-  "ownership_source": "...", "results": [
-    { "id": "E03", "title": "...", "status": "FAIL", "details": ["..."], "due_phase": 0 } ] }
+{ "student": "ab123", "version": "1.0.1", "run_date": "2026-11-17", "repo": "<folder name only>",
+  "current_phase": 2, "ownership_source": "...",
+  "index": { "index_version": 1, "commit": "<full hash>", "phases": {...}, "spark": {...}, ... },
+  "results": [
+    { "id": "E03", "title": "...", "status": "FAIL", "details": ["..."], "due_phase": 0 },
+    { "id": "X01", "title": "...", "status": "INFO", "details": ["..."], "due_phase": 0, "data": {...} } ] }
 ```
 The repo is recorded by folder name only: a full path would contain the student's username.
+
+**File index** (`"index"` in the JSON only, never in the CSV): what each check found, as repo-relative
+paths grouped by topic: `phases` (each phase's evidence files, commits, files changed, files claimed,
+owners), `control_plane`, `ownership`, `datasets`, `domain_records` (name -> file:line), `build`,
+`hadoop`, `spark`, `tests`, `scripts`, `hardcoded_values`, `docs`, `copied_from_tutorial`, and
+`areas` (terraform, docs, reports, experiments, evaluation, incidents, modules). It records the
+`commit` it describes and is valid only for that commit. It lets a later grading step find the
+files for one rubric category without searching. Students share only the CSV; the JSON (and
+therefore the index) stays on their machine.
 
 CSV (`--csv`, saved by `selfcheck.sh` as `selfcheck-<student>.csv`): one row per check, columns
 `student, repo, version, current_phase, check_id, title, status, due_phase, details` (detail lines
@@ -178,19 +194,19 @@ Levels: F = FAIL when broken, W = WARN, I = INFO. "Source" quotes or names the S
 |---|---|---|---|---|
 | S01 | F | no symlink points outside the repo | safety | resolve every symlink |
 | F02 | F | every agent file has `name`, `description`, explicit `tools` | Phase 0: "Require least privilege and explicit tools fields" | parse frontmatter |
-| P01 | F | `phase-NN` folders, none skipped, each with prompt.md, agent-report.md, human-gate.md, commit.txt | "Agent-generated deliverable evidence" | file listing |
+| P01 | F/W | phase folders (`phase-03`, `phase_03`, `Phase-3`), none skipped, each with a prompt, agent report(s), human gate and commit record under any accepted name; missing in the CURRENT phase = W (in progress); commits labelled phase-NN without a folder = W | "Agent-generated deliverable evidence" | section 8.7 |
 | G01 | F | git repository with history | Git logistics | `git log` |
 | G02 | F | each commit.txt names a commit that exists | evidence | `git cat-file -e` |
 | G03 | F | each phase has a commit whose message **starts** `phase-NN` | "commit messages that identify the phase" | message prefix (prose mentions don't count) |
 | K01 | F/W | no keys/tokens in current tracked files (AWS, GitHub, Anthropic, OpenAI, Slack, private keys); `password='...'` is W | "Secrets committed: up to 4 points lost" | regexes; values never printed |
 | K02 | F | none in any commit on any branch | same | every added line in `git log -p --all` |
-| K03 | F | no `.env`, `.tfstate`, `.tfvars`, key files tracked | Git logistics | tracked file names |
-| E01 | F | agent-report.md has all 14 required fields; STATUS ∈ COMPLETE/BLOCKED-ON/FAILED | "Required agent report fields" | label parser tolerant of markdown |
+| K03 | F/W | no `.env`, `.tfstate` or key files tracked (F); a `.tfvars` file is W (check it holds no secrets) | Git logistics: "Terraform state containing sensitive values" | tracked file names |
+| E01 | F/W | the phase's report(s) have all 14 required fields; STATUS ∈ COMPLETE/BLOCKED-ON/FAILED. F when most labels are recognised but some are missing, or the report is essentially empty; W when few labels are recognised (probably an unknown style) | "Required agent report fields" | section 8.7 |
 | E02 | F | OWNER is an existing agent | ownership | agent files |
 | E03 | F | every file in FILES CREATED/MODIFIED was changed by one of the phase's commits | "Agent reports claim commands or tests that were not actually run" | section 8.1 |
 | E04 | W | files the phase changed but the report doesn't list | manual edits "must be disclosed" | section 8.1 |
 | E05 | W | files changed in the phase are owned by OWNER | one writer per artifact | ownership patterns |
-| E06 | F | human-gate.md says accepted/rejected and names the commit in commit.txt | human-gate contents | hash cross-check |
+| E06 | F/W | the gate names the same commit as commit.txt (different commit = F; no hash but commit.txt valid = W) and states a decision (accept/approve/ratify/reject/decline; none = W) | human-gate contents | hash cross-check |
 | E07 | I | commits per phase, repair records, late fixes | — | — |
 | C01 | W | files ≥ 80% copied from the tutorial | — | section 8.2 |
 | C02 | F | > 50% of control-plane files copied | "tutorial fork with TaskForge renamed: zero" | section 8.2 |
@@ -203,10 +219,10 @@ Levels: F = FAIL when broken, W = WARN, I = INFO. "Source" quotes or names the S
 | F01 | F | CLAUDE.md, docs/agents.md, settings.json, .mcp.json, agents, hooks exist | "Required factory artifacts" |
 | F03 | F/W | reviewer agents (name contains "review") have no Write/Edit; Bash = W | "Forbid reviewer agents from receiving write tools" |
 | F04 | F | settings, settings.local, .mcp.json are valid JSON | "Require JSON parsing" |
-| F05 | F/W | hooks referenced in settings exist, are executable, pass `bash -n` (parse only) | "shell syntax checks, executable-bit checks" |
+| F05 | F/W | hooks referenced in settings exist, are executable (unless run via an interpreter), shell hooks pass `bash -n` (parse only); `"$CLAUDE_PROJECT_DIR"/…`, `${CLAUDE_PROJECT_DIR}/…`, `bash x.sh`, `python3 x.py` understood | "shell syntax checks, executable-bit checks" |
 | F06 | F | deny rules: `.env` reads, terraform apply/destroy, force push, a destructive AWS command; hooks: PreToolUse(Bash) guard, Stop, PostToolUse(Edit/Write) | Phase 0 floor invariants |
 | F07 | F | secret-looking `.mcp.json` env/headers use `${VAR}` | ".mcp.json with secret values omitted" |
-| O01 | F | ownership map readable; every writer has an agent file; AI citations verified | authority matrix |
+| O01 | F/W | every writer named in the ownership map has an agent file (F); AI citations verified; a table the parser can't read = W (suggests `--ai-ownership`); owners may be **bold** or plain agent names | authority matrix |
 | O02 | W | artifacts with >1 writer, or a path inside another's (needs "documented control") | "overlapping write ownership without documented control" |
 | O03 | W | agents said to write files have Write/Edit | ownership vs tool fence |
 | O04 | I | agents that write nothing | — |
@@ -214,7 +230,7 @@ Levels: F = FAIL when broken, W = WARN, I = INFO. "Source" quotes or names the S
 | O06 | F/W | writer names match agent files; AI mappings shown, not trusted | — |
 | R01 | F | hooks guard-dangerous, format-scala, verify-tests-ran, validate-agent-files | "Required factory artifacts" |
 | R02 | F | commands deploy, rollback, incident, run-pipeline, experiment | same |
-| R03 | F | guard-dangerous.sh names all 8 categories (AWS, Terraform, Git, database, S3, Neptune, DynamoDB, vector index) on non-comment lines | "Blocks destructive AWS, Terraform, Git, database, S3, Neptune, DynamoDB, and vector-index commands" |
+| R03 | F | guard-dangerous.sh names all 8 categories (AWS, Terraform, Git, database, S3, Neptune, DynamoDB, vector index) on non-comment lines, or within 3 consecutive lines (patterns split across array entries) | "Blocks destructive AWS, Terraform, Git, database, S3, Neptune, DynamoDB, and vector-index commands" |
 | R04 | F | settings.json: allow and deny rules; PreToolUse, PostToolUse, Stop hooks | same table |
 | R05 | F/W | deploy→deploy-engineer, incident→incident-responder, experiment→experiment-engineer exist; scripts commands run exist (W) | same table |
 | R06 | F | CLAUDE.md names ScholarChain/DBLP and has `@docs/agents.md` | "Project identity ... and import of docs/agents.md" |
@@ -246,8 +262,8 @@ Levels: F = FAIL when broken, W = WARN, I = INFO. "Source" quotes or names the S
 |---|---|---|---|---|
 | H01 | 4 | F/W | classes extending Hadoop `Mapper` and `Reducer` exist (FAIL: no Hadoop MapReduce code at all; WARN: Hadoop used but no Mapper/Reducer, e.g. streaming) | "Hadoop requirement replaced by a local loop, Spark operation, or managed import: up to 3 points" |
 | A01 | 6 | W | Spark code calling `.collect`, `.collectAsList`, `.collectAsMap`, `.toLocalIterator`, `.toPandas` (file:line; collecting a small summary is legitimate) | "Spark ... performed by collecting the graph to one process: up to 3 points" |
-| V01 | 4 | W | S3 locations, ARNs, AWS endpoints, account IDs, model IDs as literals in production code (tests, config, docs excluded; value never printed) | "Hardcoded buckets, endpoints, account IDs, thresholds, or model IDs without configuration rationale: up to 1 point" |
-| U01 | 13 | W | every `scripts/*.sh` sets -e, -u and pipefail (short or long form) | Phase 13: "Bash strict mode or an equivalently strict scripting language configuration" |
+| V01 | 4 | W | literal S3 bucket names (`"s3://my-bucket/…"`; not `s"s3://$bucket"` or `startsWith("s3://")`), ARNs, AWS endpoints, account IDs, model IDs in production code (tests, config, docs excluded; value never printed) | "Hardcoded buckets, endpoints, account IDs, thresholds, or model IDs without configuration rationale: up to 1 point" |
+| U01 | 13 | W | every `scripts/*.sh` sets -e, -u and pipefail (short or long form, anywhere in the file), itself or through a sourced library; libraries that other scripts source are exempt | Phase 13: "Bash strict mode or an equivalently strict scripting language configuration" |
 
 These show that something EXISTS or APPEARS, with file and line. Whether the Hadoop job is right,
 or a `collect()` is harmful, is for a human or the AI step. Comment lines never count.
@@ -262,6 +278,7 @@ or a `collect()` is harmful, is for a human or the AI step. Comment lines never 
 | X04 | tutorial similarity of each control-plane file | the 80% / 50% copy cut-offs |
 | X05 | test counts | the 25-test check |
 | X06 | folders to depth 2 with file counts (no file names) | where students put modules (Phase 4-10 checks) |
+| X07 | report label styles recognised (colon, bold, heading, table: counts) | which styles to support next |
 
 ## 8. Key mechanisms
 
@@ -327,6 +344,27 @@ the file has no anchors/aliases; otherwise a small built-in reader reads the `da
 (mapping or list form) without expanding anything. Both give the same result on both forms (tested).
 Only dataset names and field names are kept; values are read only to recognise DBLP.
 
+### 8.7 Phase evidence written in different styles (1.0.1)
+
+Students and their agents write the same evidence differently, and V1 must not FAIL a valid style.
+`evidence.py` + `data/evidence_formats.json` (edit the data, not the code, to add a variant):
+
+- **Folders**: `phase-03`, `phase_03`, `phase03`, `Phase-3`.
+- **File names**: compared after lowercasing and removing spaces, `-`, `_`: `agent-report.md`,
+  `agent-report-01.md`, `Agent_Report_2.md`, `final-report.md`; `human-gate*`, `gate*`;
+  `commit.txt`, `commit-hash.txt`. All of a phase's reports are read together.
+- **Field labels**: `FILES CREATED:`, `**Files created:**`, `## Files Created`, a table row
+  `| Files created | ... |`, and synonyms ("Created files", "Commands executed", ...). A section
+  ends at the next label or any heading, so one unknown label can't swallow the rest.
+- **Claimed paths**: a token counts only if it's a path that exists in the repo now or in history,
+  or is clearly file-shaped (`folder/name.ext`). Prose (`.collect()`, `Spark/Hadoop`) is ignored.
+  Absolute paths are reduced to the part inside the repo, or skipped. **Only validated paths are
+  ever printed**, never free text from your files.
+- **Commit hashes**: plain, in backticks, or inside a GitHub `.../commit/<hash>` URL.
+- **Severity**: a format the checker doesn't recognise is a `warn` about the checker, never a FAIL.
+  FAIL stays for facts: a file missing under every accepted name, a claimed file never changed,
+  a gate naming a different commit, an essentially empty report.
+
 ## 9. Safety model
 
 The checker runs on repositories it doesn't trust (and later, the instructor will run it on all
@@ -343,6 +381,8 @@ defence) before the defence was trusted.
 | AI step: student's CLAUDE.md, hooks, settings, MCP servers | `--restricted` + `--strict-mcp-config` + `--tools Read Glob`; experiments 1-2 showed hooks and MCP servers run without these flags and don't with them |
 | AI step: instructions planted in repo files | system prompt treats repo as data; code verifies every citation; the AI never decides a status |
 | Leaking the student's identity in shared results | JSON/CSV record the folder name only; no git authors, emails or absolute paths |
+| The file index listing a student's whole project | it's in the JSON only, which stays on the student's machine; only the CSV is shared |
+| Free text from a student's files appearing in output (e.g. a local home path in a report) | only validated repo paths, counts and labels are printed (section 8.7) |
 | Observations exposing your work | names, counts and yes/no only: never file contents, manifest values, report text or headings, or file names in the layout |
 | YAML expansion attack in the manifest | size limit; anchors/aliases force the non-expanding reader |
 

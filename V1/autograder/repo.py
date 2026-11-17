@@ -29,6 +29,8 @@ WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 # A commit message IDENTIFIES a phase when it STARTS with it ("phase-06 spark-engineer: ..."),
 # not when prose mentions one ("fixed description of phase 0" is not phase-00's commit).
 PHASE_MSG = re.compile(r"^\s*phase[-_ ]?(\d+)\b", re.I)
+# Phase evidence folder names: phase-03, phase_03, phase03, Phase-3, "phase 03"
+PHASE_DIR = re.compile(r"^phase[-_ ]?(\d+)$", re.I)
 
 _GIT_SAFE = ["-c", "core.fsmonitor=false",      # would run a command on every status/diff
              "-c", "core.hooksPath=/dev/null",   # no repo hooks
@@ -222,13 +224,25 @@ class Repo:
     # ------------------------------------------------------------------ phases
     @cached_property
     def phases(self):
-        """Phase evidence folders docs/agent-runs/phase-NN, sorted."""
-        return [d for d in self.glob("docs/agent-runs", "phase-*") if self.is_dir(d)]
+        """Phase evidence folders under docs/agent-runs, sorted by phase number. Name variants are
+        accepted: phase-03, phase_03, phase03, Phase-3, phase 03 (see PHASE_DIR)."""
+        dirs = [d for d in self.glob("docs/agent-runs", "*") if self.is_dir(d) and self.phase_number(d) is not None]
+        return sorted(dirs, key=lambda d: (self.phase_number(d), d.name))
 
     @staticmethod
     def phase_number(d):
-        m = re.match(r"phase-(\d+)$", Path(d).name)
+        m = PHASE_DIR.match(Path(d).name)
         return int(m.group(1)) if m else None
+
+    @cached_property
+    def history_paths(self):
+        """Every file path that ever existed in any commit (plus tracked files), and every folder
+        above them. Used to tell a real claimed path from prose that merely looks like one."""
+        files = set(self.tracked)
+        if self.is_git:
+            files |= {l for l in (self.git("log", "--all", "--name-only", "--format=", timeout=300) or "").splitlines() if l}
+        dirs = {str(Path(f).parents[i]) for f in files for i in range(len(Path(f).parts) - 1)}
+        return files | dirs
 
     @cached_property
     def current_phase(self):

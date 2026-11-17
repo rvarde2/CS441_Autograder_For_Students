@@ -9,6 +9,10 @@ Checks due from PHASE 0: they apply from the student's first commit, whatever ph
   E01-E07    phase reports checked against git
   C01-C03    copied from the tutorial
   X04        observation: tutorial similarity of each control-plane file (computed with C01)
+  X07        observation: report label styles recognised (computed with E01)
+
+Phase evidence (P01, G02, E01-E07) is read through ../evidence.py, which accepts file-name and
+label-style variants (1.0.1, after a student's agent-report-01.md files were reported missing).
 
 Rule sources (ScholarChain README): "How to execute the agentic build" (report fields),
 "Agent-generated deliverable evidence" (phase folder contents), "Git logistics", "Academic
@@ -20,13 +24,12 @@ import re
 from collections import Counter
 from pathlib import Path
 
+from .. import evidence as ev
 from ..fingerprints import fingerprint
 from ..ownership import owner_matchers
 from ..registry import check_group
 from ..repo import PHASE_MSG
 
-PHASE_FILES_REQUIRED = ["prompt.md", "agent-report.md", "human-gate.md", "commit.txt"]
-HASH = re.compile(r"\b[0-9a-f]{7,40}\b")
 
 
 # ======================================================================= S01: repo safety
@@ -49,23 +52,39 @@ def seed_agent(repo, out):
 
 
 # ======================================================================= P01: evidence folders
+EVIDENCE_KINDS = ["prompt", "agent-report", "human-gate", "commit.txt"]
+INDEX_KEY = {"prompt": "prompt", "agent-report": "agent_report", "human-gate": "human_gate", "commit.txt": "commit_record"}
+
+
 @check_group(phase=0)
 def phase_evidence(repo, out):
     # "For each phase, docs/agent-runs/phase-NN/ must contain: prompt.md, agent-report.md,
-    #  human-gate.md, commit.txt" (+ review/test/repair reports when applicable: not required here).
+    #  human-gate.md, commit.txt". Name variants are accepted (evidence.py, data/evidence_formats.json):
+    #  agent-report-01.md, phase_03/, Human_Gate.md, ... A missing file is FAIL, except in the CURRENT
+    #  (highest) phase, which may still be in progress: WARN.
+    title = "Phase evidence folders docs/agent-runs/phase-NN/"
     if not repo.phases:
-        out.add("P01", "Phase evidence folders docs/agent-runs/phase-NN/", "FAIL",
-                ["docs/agent-runs/ has no phase-NN folders (rubric: 'no agent evidence' fails the "
-                 "workflow requirement)"])
+        out.add("P01", title, "FAIL",
+                ["docs/agent-runs/ has no phase-NN folders (rubric: 'no agent evidence' fails the workflow requirement)"])
         return
-    gaps = [f"{repo.rel(d)}/: missing {f}" for d in repo.phases for f in PHASE_FILES_REQUIRED
-            if not repo.is_file(d / f)]
-    nums = sorted(n for d in repo.phases if (n := repo.phase_number(d)) is not None)
-    skipped = [n for n in range(nums[0], nums[-1] + 1) if n not in nums] if nums else []
-    out.add("P01", "Phase evidence folders docs/agent-runs/phase-NN/",
-            "FAIL" if gaps or skipped else "PASS",
-            [f"phases found: {', '.join(d.name for d in repo.phases)}"] + gaps
-            + [f"phase-{n:02d} is missing between others" for n in skipped])
+    fail, warn = [], []
+    current = repo.current_phase
+    for d in repo.phases:
+        for k in EVIDENCE_KINDS:                       # index: the actual evidence file names
+            out.record("phases", d.name, INDEX_KEY[k], value=[repo.rel(p) for p in ev.evidence_files(repo, d, k)])
+        out.record("phases", d.name, "number", value=repo.phase_number(d))
+        missing = [k for k in EVIDENCE_KINDS if not ev.evidence_files(repo, d, k)]
+        if missing:
+            msg = f"{repo.rel(d)}/: missing {', '.join(missing)} (name variants are accepted, e.g. agent-report-01.md, Human_Gate.md)"
+            (warn if repo.phase_number(d) == current else fail).append(
+                msg + (" [current phase: in progress?]" if repo.phase_number(d) == current else ""))
+    nums = sorted({repo.phase_number(d) for d in repo.phases})
+    fail += [f"phase-{n:02d} is missing between others" for n in range(nums[0], nums[-1] + 1) if n not in nums]
+    # commits labelled phase-NN for a phase that has no evidence folder (e.g. phase-00 work, no phase-00/)
+    labelled = {int(m.group(1)) for s_ in repo.subjects if (m := PHASE_MSG.match(s_.split(" ", 1)[-1]))}
+    warn += [f"commits are labelled phase-{n:02d}, but docs/agent-runs has no folder for it" for n in sorted(labelled - set(nums))]
+    out.add("P01", title, "FAIL" if fail else ("WARN" if warn else "PASS"),
+            [f"phases found: {', '.join(d.name for d in repo.phases)}"] + fail + warn)
 
 
 # ======================================================================= G01-G03: git
@@ -82,10 +101,9 @@ def git_history(repo, out):
     # G02: every phase-NN/commit.txt names a commit that really exists (a claim checked against git).
     g2 = []
     for d in repo.phases:
-        txt = repo.read(d / "commit.txt")
-        if txt is None:
+        if not ev.evidence_files(repo, d, "commit.txt"):
             continue                      # P01 already reports the missing file
-        hashes = HASH.findall(txt)
+        hashes = ev.hashes_in(ev.evidence_text(repo, d, "commit.txt"))
         if not hashes:
             g2.append(f"{repo.rel(d)}/commit.txt: no commit hash in it")
         for h in hashes:
@@ -124,8 +142,10 @@ SECRET_PATTERNS = {
 GENERIC_SECRET = re.compile(r"(?i)\b(password|passwd|secret|api_?key|token)\b\s*[=:]\s*['\"]([^'\"\s${}]{8,})['\"]")
 FORBIDDEN_FILES = [(r"(^|/)\.env(\..*)?$", ".env file"),
                    (r"\.tfstate(\.backup)?$", "Terraform state"),
-                   (r"(?<!example)\.tfvars$", "Terraform variables file"),
                    (r"\.pem$|(^|/)id_(rsa|ed25519)$", "private key file")]
+# The README forbids state "containing sensitive values", not variables files in general:
+# a committed .tfvars is a WARN (check it holds no secrets). K01/K02 still catch real secrets in it.
+REVIEW_FILES = [(r"(?<!example)\.tfvars$", "Terraform variables file: make sure it holds no secrets")]
 
 
 @check_group(phase=0)
@@ -161,7 +181,9 @@ def secrets(repo, out):
 
     # K03: "Do not commit secrets, .env files, Terraform state containing sensitive values ..."
     bad = [f"{t}: {why}" for t in repo.tracked for rx, why in FORBIDDEN_FILES if re.search(rx, t)]
-    out.add("K03", "No .env, Terraform state, tfvars or key files committed", "FAIL" if bad else "PASS", bad)
+    review = [f"{t}: {why}" for t in repo.tracked for rx, why in REVIEW_FILES if re.search(rx, t)]
+    out.add("K03", "No .env, Terraform state or key files committed (tfvars: review)",
+            "FAIL" if bad else ("WARN" if review else "PASS"), bad + review)
 
 
 # ======================================================================= E01-E07: reports vs git
@@ -169,40 +191,16 @@ def secrets(repo, out):
 #   every commit whose message starts "phase-NN"  +  the commit(s) named in phase-NN/commit.txt.
 # Several commits per phase, labelled repairs, and small late fixes committed after a later phase
 # are all allowed (E07 reports them; nothing fails because of order).
-REPORT_FIELDS = ["STATUS", "OWNER", "WORK ORDER", "FILES CREATED", "FILES MODIFIED", "COMMANDS RUN",
-                 "TEST RESULTS", "VALIDATION RESULTS", "ASSUMPTIONS", "RISKS", "MANUAL ACTION REQUIRED",
-                 "BLOCKED-ON OWNER", "BLOCKED-ON EVIDENCE", "NEXT GATE"]   # README: "Required agent report fields"
-# A field label at the start of a line, tolerating markdown decoration: "**STATUS:**", "- OWNER:", "## Files created:"
-LABEL = re.compile(r"^\s*[#>*_\-\s]*(" + "|".join(re.escape(f) for f in REPORT_FIELDS)
-                   + r")\s*[*_]*\s*:\s*(.*)$", re.I)
-# Something that looks like a repo path: has a folder, or a file extension, or is a dotfile.
-PATHLIKE = re.compile(r"`?((?:[\w.\-]+/)*[\w.\-]*[\w\-]\.[A-Za-z0-9]{1,10}|(?:[\w.\-]+/)+[\w.\-]+"
-                      r"|(?<![\w/])\.[A-Za-z][\w\-]*)`?")
+REPORT_FIELDS = list(ev.FORMATS["report_fields"])   # README: "Required agent report fields" (14)
+# Recognising fields in a style we don't know: with fewer than this many fields recognised, missing
+# fields are a WARN ("format not recognised?"), not a FAIL.
+RECOGNISED_ENOUGH = 7
+DECISION = re.compile(r"accept|approv|ratif|reject|declin|refus", re.I)
 
 
-def parse_report(text):
-    """{FIELD: text} for each labelled field; a field's text runs until the next label."""
-    fields, cur = {}, None
-    for line in text.splitlines():
-        m = LABEL.match(line)
-        if m:
-            cur = m.group(1).upper()
-            fields[cur] = m.group(2).strip()
-        elif cur:
-            fields[cur] += "\n" + line
-    return fields
-
-
-def paths_in(field_text):
-    """Paths mentioned in a report field. Keeps leading dots (.claude/, .gitignore): an earlier
-    version used strip('.')/lstrip('./'), which turned '.claude/x' into 'claude/x'."""
-    found = []
-    for tok in PATHLIKE.findall(field_text or ""):
-        tok = tok.strip("`'\",;:()").rstrip(".")
-        if "://" in tok or tok.lower() in ("none", "n/a") or tok.startswith(("http", "www.")):
-            continue
-        found.append(tok[2:] if tok.startswith("./") else tok)
-    return found
+def owners_of_report(rep):
+    owner = ev.first_value(rep.get("OWNER"))
+    return [o.strip("`* ") for o in re.split(r"\s*(?:,|;|&|\band\b)\s*", owner) if o.strip("`* ")]
 
 
 @check_group(phase=0)
@@ -229,31 +227,44 @@ def reports_vs_git(repo, out):
         return files_of[h]
 
     e1, e2, e3, e4, e5, e6, e7 = ([] for _ in range(7))
+    e1w, e6w, style_seen = [], [], Counter()        # WARN-level findings; report label styles seen
     for d in repo.phases:
         n = repo.phase_number(d)
         if n is None:
             continue
         tag = d.name
-        listed = [c for x in HASH.findall(repo.read(d / "commit.txt") or "") if (c := repo.resolve_commit(x))]
+        listed = [c for x in ev.hashes_in(ev.evidence_text(repo, d, "commit.txt")) if (c := repo.resolve_commit(x))]
         commits = phase_commits.get(n, set()) | set(listed)
         touched = set().union(*(changed(h) for h in commits)) if commits else set()
         touched = {f for f in touched if not f.startswith("docs/agent-runs/")}   # evidence isn't "work"
+        out.record("phases", d.name, "commits", value=sorted(commits, key=lambda h: order.get(h, 0)))
+        out.record("phases", d.name, "files_changed", value=sorted(touched))
 
-        # ---- E01: required fields and a valid STATUS
-        rep_text = repo.read(d / "agent-report.md")
-        if rep_text is None:
-            e1.append(f"{tag}: no agent-report.md")
-            continue
-        rep = parse_report(rep_text)
+        # ---- E01: required fields and a valid STATUS. All of the phase's reports are read together
+        #      (agent-report.md, agent-report-01.md, ...); labels in several styles (evidence.py).
+        reports = ev.evidence_files(repo, d, "agent-report")
+        if not reports:
+            continue                      # P01 reports the missing report
+        rep, styles = ev.parse_report(ev.evidence_text(repo, d, "agent-report"))
+        style_seen.update(styles)
+        found = [f for f in REPORT_FIELDS if f in rep]
         if (missing := [f for f in REPORT_FIELDS if f not in rep]):
-            e1.append(f"{tag}: missing field(s) {', '.join(missing)}")
-        status = (rep.get("STATUS") or "").split("\n")[0].strip().upper()
-        if "STATUS" in rep and not re.match(r"(COMPLETE|BLOCKED-ON|FAILED)\b", status):
+            msg = f"{tag}: missing field(s) {', '.join(missing)}"
+            body = re.sub(r"\s+", "", ev.evidence_text(repo, d, "agent-report"))
+            if len(found) >= RECOGNISED_ENOUGH:
+                e1.append(msg)
+            elif not found and len(body) < 200:          # a stub, not an unknown style: a fact
+                e1.append(f"{tag}: the agent report is essentially empty (no fields, under 200 characters)")
+            else:
+                e1w.append(msg + f" (only {len(found)} of {len(REPORT_FIELDS)} labels recognised: the report may "
+                                 f"use a style the checker doesn't know; use the README's field names, e.g. 'FILES CREATED:')")
+        status = ev.first_value(rep.get("STATUS"))
+        if "STATUS" in rep and not ev.status_ok(status):
             e1.append(f"{tag}: STATUS is {status[:30]!r}, not COMPLETE | BLOCKED-ON | FAILED")
 
         # ---- E02: OWNER is a real agent. A phase can have several owners: Phase 3 is "the
         #      dataset-engineer and domain-engineer, in separate delegated work orders".
-        owner = (rep.get("OWNER") or "").split("\n")[0].strip().strip("`*")
+        owner = ev.first_value(rep.get("OWNER"))
         owners = [o.strip("`* ") for o in re.split(r"\s*(?:,|;|&|\band\b)\s*", owner) if o.strip("`* ")]
         if "OWNER" in rep:
             unknown = [o for o in owners if o not in agents] or ([] if owners else [owner])
@@ -261,7 +272,11 @@ def reports_vs_git(repo, out):
                 e2.append(f"{tag}: OWNER {o!r} has no file in .claude/agents/")
 
         # ---- E03: every claimed file was changed by one of this phase's commits
-        claimed = paths_in(rep.get("FILES CREATED")) + paths_in(rep.get("FILES MODIFIED"))
+        #      Only real repo paths (now or in history) or clearly file-shaped tokens count as claims;
+        #      prose like '.collect' or 'Spark/Hadoop' is ignored and never echoed (evidence.claimed_paths).
+        claimed = ev.claimed_paths(repo, rep.get("FILES CREATED")) + ev.claimed_paths(repo, rep.get("FILES MODIFIED"))
+        out.record("phases", tag, "files_claimed", value=claimed)
+        out.record("phases", tag, "owners", value=owners_of_report(rep))
 
         def covered(t, c):        # a claimed folder covers the files under it
             return t == c or t.startswith(c.rstrip("/") + "/")
@@ -270,7 +285,8 @@ def reports_vs_git(repo, out):
             if not any(covered(t, c) for t in touched):
                 elsewhere = sorted({f"phase-{k:02d}" for k, hs in phase_commits.items() for h in hs if c in changed(h)})
                 e3.append(f"{tag}: report claims {c}, but no {tag} commit changed it"
-                          + (f" (changed in {', '.join(elsewhere)})" if elsewhere else "")
+                          + (f" (changed in {', '.join(elsewhere)})" if elsewhere else
+                             "" if c in repo.history_paths else " (this path never existed in the repo)")
                           + ("" if commits else "  [this phase has no commits]"))
 
         # ---- E04: changed but not reported (manual edits must be disclosed in human-gate.md)
@@ -286,27 +302,31 @@ def reports_vs_git(repo, out):
                 if own and not own & set(owners):
                     e5.append(f"{tag}: {owner} changed {t}, owned by {', '.join(sorted(own))}")
 
-        # ---- E06: human gate states a decision and the accepted commit (same as commit.txt)
-        hg = repo.read(d / "human-gate.md")
-        if hg is None:
-            e6.append(f"{tag}: no human-gate.md")
-        else:
-            accepted = [c for x in HASH.findall(hg) if (c := repo.resolve_commit(x))]
+        # ---- E06: human gate states a decision and the accepted commit (same as commit.txt).
+        #      Gate written before the commit existed (no hash, but commit.txt is valid): WARN.
+        #      A gate that names a DIFFERENT commit than commit.txt: FAIL.
+        if ev.evidence_files(repo, d, "human-gate"):
+            hg = ev.evidence_text(repo, d, "human-gate")
+            accepted = [c for x in ev.hashes_in(hg) if (c := repo.resolve_commit(x))]
             if not accepted:
-                e6.append(f"{tag}: human-gate.md names no existing commit (it must state the accepted hash)")
+                (e6w if listed else e6).append(
+                    f"{tag}: the human gate names no existing commit" + (
+                        f" (commit.txt has {listed[0][:10]}; the README asks the gate to state the accepted hash too)"
+                        if listed else " and commit.txt names none either"))
             elif listed and not set(accepted) & set(listed):
-                e6.append(f"{tag}: human-gate.md accepts {accepted[0][:10]}, but commit.txt says {listed[0][:10]}")
-            if not re.search(r"accept|reject", hg, re.I):
-                e6.append(f"{tag}: human-gate.md doesn't say accepted or rejected")
+                e6.append(f"{tag}: the human gate accepts {accepted[0][:10]}, but commit.txt says {listed[0][:10]}")
+            if not DECISION.search(hg):
+                e6w.append(f"{tag}: the human gate doesn't state a decision (accepted / approved / rejected ...)")
 
         # ---- E07: information only: commits, repairs, and commits made after a later phase's
-        repairs = len(repo.glob(d, "repair-*.md"))
+        repairs = sum(1 for p in repo.glob(d, "*") if ev.norm(p.name).startswith("repair"))
         late = sorted((h for h in commits if h in order and any(
             order[h] > order[x] for k, xs in phase_commits.items() if k > n for x in xs)), key=order.get)
         e7.append(f"{tag}: {len(commits)} commit(s), {repairs} repair record(s)"
                   + (f"; {len(late)} came after a later phase's commit ({', '.join(h[:7] for h in late)})" if late else ""))
 
-    out.add("E01", "Agent reports have every required field and a valid STATUS", "FAIL" if e1 else "PASS", e1)
+    out.add("E01", "Agent reports have every required field and a valid STATUS",
+            "FAIL" if e1 else ("WARN" if e1w else "PASS"), e1 + e1w)
     out.add("E02", "Each report's OWNER is an existing agent", "FAIL" if e2 else "PASS", e2)
     out.add("E03", "Files a report claims were really changed by that phase's commits", "FAIL" if e3 else "PASS", e3)
     out.add("E04", "Files the phase changed but its report doesn't list (undisclosed manual edits?)",
@@ -315,7 +335,11 @@ def reports_vs_git(repo, out):
             "WARN" if e5 else ("PASS" if matchers else "INFO"),
             e5 or ([] if matchers else ["no ownership map to compare with"]))
     out.add("E06", "human-gate.md states a decision and the accepted commit, matching commit.txt",
-            "FAIL" if e6 else "PASS", e6)
+            "FAIL" if e6 else ("WARN" if e6w else "PASS"), e6 + e6w)
+    # X07 (observation): which report label styles were recognised, to learn students' formats
+    out.add("X07", "Observation: report label styles recognised (colon, bold, heading, table)", "INFO",
+            [", ".join(f"{k}: {v}" for k, v in sorted(style_seen.items())) or "none recognised"],
+            data=dict(sorted(style_seen.items())))
     out.add("E07", "Commits per phase (several commits, repairs and late fixes are allowed)", "INFO", e7)
 
 
@@ -351,6 +375,8 @@ def copy_detection(repo, out):
     candidates = sorted(t for t in repo.tracked if (repo.size(t) or 0) <= 200_000 and repo.is_file(t))
     sims = {t: m for t in candidates if (m := best_match(t))}
     copied = {t: m for t, m in sims.items() if m[0] >= COPY_AT}
+    out.record("copied_from_tutorial", value={t: {"similarity": round(m[0], 2), "tutorial_file": m[1]}
+                                              for t, m in sorted(copied.items())})
 
     others = Counter(t.split("/")[0] if "/" in t else "(root)" for t in copied if not is_control(t))
     out.add("C01", "Files copied from the tutorial (>= 80% of their lines; one generic file is fine)",

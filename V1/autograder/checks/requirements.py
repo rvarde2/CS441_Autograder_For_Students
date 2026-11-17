@@ -71,20 +71,25 @@ def k_dirs_not_empty(repo, row):
     return ("FAIL" if bad else "WARN" if moved else "PASS"), bad + moved
 
 
-def k_scala_defines(repo, row):
-    # A definition, not a mention: optional modifiers, then the keyword, then the exact name.
-    found = set()
+def scala_definitions(repo, names):
+    """{name: "file:line"} of the first definition of each name in tracked .scala files.
+    A definition, not a mention: optional modifiers, the keyword, the exact name; comments skipped."""
+    found = {}
     defn = re.compile(r"^\s*(?:(?:final|sealed|abstract|private|protected|implicit|opaque|case)\s+)*"
-                      r"(?:class|trait|object|enum|type)\s+(" + "|".join(map(re.escape, row["names"])) + r")\b")
+                      r"(?:class|trait|object|enum|type)\s+(" + "|".join(map(re.escape, names)) + r")\b")
     for t in repo.tracked:
         if not t.endswith(".scala"):
             continue
-        for line in (repo.read(t) or "").splitlines():
-            s = line.lstrip()
-            if s.startswith(("//", "*", "/*")):
+        for i, line in enumerate((repo.read(t) or "").splitlines(), 1):
+            if line.lstrip().startswith(("//", "*", "/*")):
                 continue                            # commented out: doesn't count
-            if (m := defn.match(line)):
-                found.add(m.group(1))
+            if (m := defn.match(line)) and m.group(1) not in found:
+                found[m.group(1)] = f"{t}:{i}"
+    return found
+
+
+def k_scala_defines(repo, row):
+    found = scala_definitions(repo, row["names"])
     missing = [n for n in row["names"] if n not in found]
     return ("FAIL" if missing else "PASS"), (
         [f"not defined in any tracked .scala file: {', '.join(missing)}"] if missing else []) + [
@@ -133,6 +138,27 @@ def k_manifest_datasets(repo, row):
     return ("FAIL" if problems else "PASS"), problems + [f"entries: {', '.join(sorted(sets))}"]
 
 
+def index_value(repo, row):
+    """What a table row found, for the JSON file index: locations, never contents."""
+    kind = row["kind"]
+    if kind == "paths":
+        return {p: (where if st == "here" else where[0] if st == "elsewhere" else None)
+                for p in row["paths"] for st, where in [_locate(repo, p)]}
+    if kind == "dirs_not_empty":
+        return {d: _dir_files(repo, d) for d in row["paths"]}
+    if kind == "scala_defines":
+        found = scala_definitions(repo, row["names"])
+        return {n: found.get(n) for n in row["names"]}
+    if kind == "markdown_heading":
+        return {"file": row["path"] if repo.is_file(row["path"]) else None,
+                "found": k_markdown_heading(repo, row)[0] == "PASS"}
+    if kind == "manifest":
+        path, _ = manifest_file(repo)
+        sets = read_manifest(repo.read(path) or "")[0] if path else {}
+        return {"path": path, "datasets": sets}           # dataset names and FIELD NAMES only
+    return None
+
+
 KINDS = {"paths": k_paths, "dirs_not_empty": k_dirs_not_empty, "scala_defines": k_scala_defines,
          "markdown_heading": k_markdown_heading, "manifest": k_manifest, "manifest_datasets": k_manifest_datasets}
 
@@ -146,3 +172,5 @@ def table_checks(repo, out):
         if status != "PASS":
             details = details + [f"README: \"{row['rule']}\""]
         out.add(row["id"], row["title"], status, details, due=row["phase"])
+        if row.get("index"):
+            out.record(*row["index"], value=index_value(repo, row))

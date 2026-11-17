@@ -15,7 +15,9 @@ from ..registry import check_group
 from ..sources import code_lines
 
 KINDS = {
-    "S3 location": re.compile(r"[\"']s3a?://"),
+    # a LITERAL bucket name: "s3://my-bucket/..." counts; s"s3://$bucket", "s3://" + x and
+    # startsWith("s3://") don't (1.0.1: 1.0.0 flagged every scheme literal)
+    "S3 location": re.compile(r"[\"']s3a?://[a-z0-9][a-z0-9.\-]{2,}"),
     "AWS ARN": re.compile(r"[\"']arn:aws[\w-]*:"),
     "AWS endpoint": re.compile(r"[\"'][\w.-]*\.amazonaws\.com"),
     "AWS account ID": re.compile(r"(?i)account[\w\s\"':=]*[\"']\d{12}[\"']"),
@@ -27,6 +29,7 @@ KINDS = {
 def hardcoded_values(repo, out):
     hits = [f"{t}:{i}: {kind}" for t, i, line in code_lines(repo, (".scala", ".java", ".py"), skip_tests=True)
             for kind, rx in KINDS.items() if rx.search(line)]
+    out.record("hardcoded_values", value=hits)
     out.add("V01", "No hard-coded buckets, ARNs, endpoints, account IDs or model IDs in source code",
             "WARN" if hits else "PASS",
             hits[:20] + ([f"... and {len(hits) - 20} more"] if len(hits) > 20 else [])

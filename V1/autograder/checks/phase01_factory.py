@@ -22,8 +22,45 @@ from ..repo import WRITE_TOOLS
 
 
 # ======================================================================= F: control plane
+INTERPRETERS = {"bash", "sh", "zsh", "python", "python3", "node", "env", "uv", "run", "-c"}
+PROJECT_DIR = re.compile(r"""["']?\$\{?CLAUDE_PROJECT_DIR\}?["']?/?""")
+
+
+def hook_script(cmd):
+    """(repo-relative script path, run via an interpreter?) for a hook command, or (None, False)
+    if it's an inline command. The project-dir variable in any quoting is removed first."""
+    import shlex
+    cmd = PROJECT_DIR.sub("", cmd)
+    try:
+        tokens = shlex.split(cmd)
+    except ValueError:
+        tokens = cmd.split()
+    via = False
+    for t in tokens:
+        if t in INTERPRETERS or t.startswith("-"):
+            via = via or t in INTERPRETERS
+            continue
+        t = t.lstrip("/")
+        t = t[2:] if t.startswith("./") else t
+        if "/" in t or t.endswith((".sh", ".bash", ".py", ".js")):
+            return t, via
+        return None, False          # first real token isn't a path: an inline command
+    return None, False
+
+
 @check_group(phase=1)
 def control_plane(repo, out):
+    # index: where the control plane lives
+    out.record("control_plane", "agents", value={n: a["file"] for n, a in sorted(repo.agents.items())})
+    out.record("control_plane", "hooks", value=[repo.rel(p) for p in repo.hook_files])
+    out.record("control_plane", "commands", value=[repo.rel(p) for p in repo.command_files])
+    out.record("control_plane", "files", value=[f for f in ("CLAUDE.md", "docs/agents.md", ".claude/settings.json",
+                                                             ".claude/settings.local.json", ".mcp.json") if repo.is_file(f)])
+    out.record("control_plane", "hooks_referenced", value={
+        ev_: sorted({s for e in entries or [] for h in e.get("hooks", []) or []
+                     if (s := hook_script((h.get("command") or "").strip())[0])})
+        for ev_, entries in repo.hook_cfg.items()})
+
     # F01: the files every ScholarChain repo must contain.
     required = ["CLAUDE.md", "docs/agents.md", ".claude/settings.json", ".mcp.json"]
     missing = [f for f in required if repo.read(f) is None]
@@ -60,23 +97,25 @@ def control_plane(repo, out):
 
     # F05: "shell syntax checks, executable-bit checks". Every hook script referenced from
     # settings.json must exist, be executable, and parse. `bash -n` PARSES, it never runs the script.
+    #      Command styles accepted: .claude/hooks/x.sh, "$CLAUDE_PROJECT_DIR"/.claude/hooks/x.sh,
+    #      ${CLAUDE_PROJECT_DIR}/..., ./..., `bash x.sh`, `python3 x.py`. (1.0.0 failed the quoted
+    #      "$CLAUDE_PROJECT_DIR"/ form: it reported existing hooks as missing.)
     problems = []
     for event, entries in repo.hook_cfg.items():
         for e in entries or []:
             for h in e.get("hooks", []) or []:
                 cmd = (h.get("command") or "").strip()
-                first = cmd.split()[0] if cmd else ""
-                if not (first.endswith(".sh") or first.startswith((".claude/", "./"))):
+                script, via_interpreter = hook_script(cmd)
+                if script is None:
                     problems.append(f"{event}: inline command (not a script file): {cmd[:80]}")
                     continue
-                rel = first.replace("$CLAUDE_PROJECT_DIR/", "").replace('"', "")
-                if not repo.is_file(rel):
-                    problems.append(f"{event}: {first} does not exist")
+                if not repo.is_file(script):
+                    problems.append(f"{event}: {script} does not exist")
                     continue
-                if not repo.is_executable(rel):
-                    problems.append(f"{event}: {first} is not executable")
-                if (err := repo.bash_syntax_error(rel)):
-                    problems.append(f"{event}: {first} has a shell syntax error: {err[:120]}")
+                if not via_interpreter and not repo.is_executable(script):
+                    problems.append(f"{event}: {script} is not executable")
+                if script.endswith((".sh", ".bash")) and (err := repo.bash_syntax_error(script)):
+                    problems.append(f"{event}: {script} has a shell syntax error: {err[:120]}")
     hard = any(k in x for x in problems for k in ("does not exist", "not executable", "syntax"))
     out.add("F05", "Hook scripts exist, are executable, and pass `bash -n`",
             "FAIL" if hard else ("WARN" if problems else "PASS"), problems)
@@ -123,9 +162,15 @@ def control_plane(repo, out):
 def ownership(repo, out):
     own = repo.ownership
     rows, agents = own["rows"], repo.agents
+    out.record("ownership", value={"source": own["source"],
+                                   "rows": [{"path": r["path"], "agent": r["agent"], "where": r["where"]} for r in rows]})
     if not rows:
-        out.add("O01", "Ownership map found and readable", "FAIL",
-                [f"source: {own['source']}", "no writer rows found"] + own["rejected"])
+        # The README fixes no table format, so "couldn't read it" is about the checker, not the
+        # student: WARN with a way forward, not FAIL (1.0.1).
+        out.add("O01", "Ownership map found and readable", "WARN",
+                [f"source: {own['source']}",
+                 "no writer rows recognised in docs/agents.md (a table with paths in one column and "
+                 "agent names in another); run with --ai-ownership to read other formats"] + own["rejected"])
         return
 
     # O01: the map exists and every writer it names has an agent file.
@@ -235,7 +280,10 @@ def scholarchain_content(repo, out):
                 ["guard-dangerous.sh missing"])
     else:
         lines = code_lines(guard)
-        gaps = [c for c, rx in GUARD_CATEGORIES.items() if not any(re.search(rx, l, re.I) for l in lines)]
+        # a pattern may be split over nearby lines (e.g. array entries "aws", "neptune", "delete-db-cluster"):
+        # also look at every window of 3 consecutive non-comment lines (1.0.1)
+        windows = lines + [" ".join(lines[i:i + 3]) for i in range(len(lines))]
+        gaps = [c for c, rx in GUARD_CATEGORIES.items() if not any(re.search(rx, w, re.I) for w in windows)]
         out.add("R03", "guard-dangerous.sh covers every destructive category ScholarChain names",
                 "FAIL" if gaps else "PASS",
                 [f"no pattern for: {c}" for c in gaps]

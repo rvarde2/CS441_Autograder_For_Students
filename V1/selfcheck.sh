@@ -67,8 +67,8 @@ rc=$?
 set -e
 [ $rc -ne 2 ] || exit 2        # wrong folder (message already printed): nothing was saved
 echo
-echo "Saved: $OUT/$CSV_NAME"
-echo "       $OUT/selfcheck-results.json   (grader version $(cat "$HERE/VERSION" 2>/dev/null || echo '?'))"
+echo "Saved: $OUT/$CSV_NAME   <- the only file to share"
+echo "       $OUT/selfcheck-results.json   (keep on your computer; grader version $(cat "$HERE/VERSION" 2>/dev/null || echo '?'))"
 [ -n "$STUDENT" ] || echo "Tip: add --student <your NetID> so the CSV is named and labelled for you."
 echo "ADVISORY ONLY: this is not your grade. See README.md for what it does and does not check."
 exit $rc

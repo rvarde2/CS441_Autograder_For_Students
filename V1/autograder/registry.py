@@ -30,11 +30,22 @@ def check_group(phase):
 
 
 class Results:
-    """Collects results. `due` is set by the runner to the phase of the group being run."""
+    """Collects results. `due` is set by the runner to the phase of the group being run.
+    `index` is the FILE INDEX: what each check found, as repo-relative paths grouped by topic
+    (e.g. index["spark"]["collect_calls"]). It goes into the JSON (never the CSV), so a later
+    grading step can find a topic's files without searching. Paths and names only, never contents."""
 
     def __init__(self):
         self.items = []
         self.due = 0
+        self.index = {}
+
+    def record(self, *keys, value):
+        """index[k1][k2]... = value, creating the nested dicts as needed."""
+        d = self.index
+        for k in keys[:-1]:
+            d = d.setdefault(k, {})
+        d[keys[-1]] = value
 
     def add(self, cid, title, status, details=(), due=None, data=None):
         """due: override the group's phase (the requirements table has a phase per row).
@@ -55,4 +66,4 @@ def run_all(repo):
     for phase, fn in sorted(GROUPS, key=lambda g: g[0]):
         out.due = phase
         fn(repo, out)
-    return out.items
+    return out

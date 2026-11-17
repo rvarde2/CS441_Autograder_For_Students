@@ -1,7 +1,8 @@
 """
 Check modules. Importing a module registers its groups (see registry.check_group).
 
-  always.py            due from phase 0: S01 F02 P01 G01-03 K01-03 E01-07 C01-03 (+ X04)
+  always.py            due from phase 0: S01 F02 P01 G01-03 K01-03 E01-07 C01-03 (+ X04, X07);
+                       phase evidence is read tolerantly by ../evidence.py
   phase01_factory.py   phase 1: F01 F03-07 O01-06 R01-08
   phase02_build.py     phase 2: K04
   phase04_hadoop.py    phase 4: H01 (Hadoop MapReduce exists)

@@ -54,14 +54,25 @@ def _from_ai(repo, data):
 
 def _from_table(repo):
     rows = []
+    agents = set(repo.agents)
     for i, line in enumerate((repo.read("docs/agents.md") or "").splitlines(), 1):
-        if not line.startswith("|") or "---" in line:
+        if not line.lstrip().startswith("|") or re.fullmatch(r"[\s|:\-]+", line):
             continue
-        cols = [c.strip() for c in line.strip("|").split("|")]
+        cols = [c.strip() for c in line.strip().strip("|").split("|")]
         if len(cols) < 2:
             continue
-        for p in re.findall(r"`([^`]+)`", cols[0]):
-            for name in re.findall(r"\*\*([a-z0-9-]+)\*\*", cols[1]):
+        # paths: `backticked`, else path-like tokens (contain / or * or a .ext)  (1.0.1)
+        #   an unquoted token is a path only if it exists in the repo/history, has a wildcard, or
+        #   ends in a file extension: 'Bootstrap/evolve' in a lifecycle table is NOT a path
+        known = repo.history_paths
+        paths = re.findall(r"`([^`]+)`", cols[0]) or [
+            t for t in re.split(r"[,\s]+", cols[0]) if re.fullmatch(r"[\w.*\-/]+", t)
+            and (t.rstrip("/") in known or "*" in t or re.search(r"\.[A-Za-z0-9]{1,10}$", t))]
+        # owners: **bold** names, else plain words that are names of real agents  (1.0.1)
+        names = re.findall(r"\*\*([a-z0-9-]+)\*\*", cols[1]) or [
+            w for w in re.findall(r"[A-Za-z0-9][\w-]*", cols[1]) if w in agents]
+        for p in paths:
+            for name in names:
                 rows.append({"path": p, "kind": "files", "agent": name, "role": "owner",
                              "condition": "", "where": f"docs/agents.md:{i}"})
     return {"rows": rows, "rejected": [], "notes": [],

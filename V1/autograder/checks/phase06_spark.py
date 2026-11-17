@@ -24,6 +24,7 @@ def spark(repo, out):
     spark_files |= {t for t in repo.tracked if "spark" in t.lower() and t.endswith(SRC)}
     hits = [f"{t}:{i}: .{m.group(1)}" for t, i, line in code_lines(repo, SRC, skip_tests=True)
             if t in spark_files and (m := COLLECT.search(line))]
+    out.record("spark", value={"files": sorted(spark_files), "collect_calls": [h.rsplit(": .", 1)[0] for h in hits]})
     if not spark_files:
         status, details = "WARN", ["no Spark code found (no path containing 'spark', no org.apache.spark / pyspark import)"]
     else:

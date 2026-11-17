@@ -1,5 +1,8 @@
 # How to run the ScholarChain self-check
 
+It checks **your own project repository** (your implementation of the ScholarChain assignment),
+not the ScholarChain assignment repository.
+
 A step-by-step guide. `README.md` is the reference (what every check means); this file gets you
 from zero to a first result.
 
@@ -61,7 +64,7 @@ Your results are saved either way.
 A run looks like this (a repository that has just finished Phase 0):
 
 ```
-ScholarChain self-check v1.0.0   repo: /home/you/projects/my-scholarchain
+ScholarChain self-check v1.0.1   repo: /home/you/projects/my-scholarchain
 current phase: 0 (highest docs/agent-runs/phase-NN)
 
 [ok  ] S01  No symlinks pointing outside the repo
@@ -72,10 +75,10 @@ current phase: 0 (highest docs/agent-runs/phase-NN)
 [later] R01  Required hooks: guard-dangerous, format-scala, verify-tests-ran, validate-agent-files
          - not due yet: needed by phase 1; your highest phase is 0 (right now it would be FAIL)
 ...
-17 pass, 0 fail, 0 warn, 5 info, 28 not yet due
+17 pass, 0 fail, 0 warn, 6 info, 28 not yet due
 
-Saved: /home/you/CS441_Autograder_For_Students/V1/selfcheck-results/selfcheck-ab123.csv
-       /home/you/CS441_Autograder_For_Students/V1/selfcheck-results/selfcheck-results.json   (grader version 1.0.0)
+Saved: /home/you/CS441_Autograder_For_Students/V1/selfcheck-results/selfcheck-ab123.csv   <- the only file to share
+       /home/you/CS441_Autograder_For_Students/V1/selfcheck-results/selfcheck-results.json   (keep on your computer; grader version 1.0.1)
 ADVISORY ONLY: this is not your grade. See README.md for what it does and does not check.
 ```
 
@@ -105,7 +108,8 @@ Run it as often as you like: before each phase's human gate is a good habit.
 
 ## 6. Share your results (when your instructor asks)
 
-Send **`selfcheck-results/selfcheck-<NetID>.csv`**. It opens in Excel or Google Sheets, so you can
+Send **only `selfcheck-results/selfcheck-<NetID>.csv`**. Keep `selfcheck-results.json` on your
+computer: it also lists where your project's files are, which nobody needs from you. It opens in Excel or Google Sheets, so you can
 read every cell first. It contains check IDs, results, and the file names and lines where problems
 were found: not your code, not your prompts.
 
@@ -142,6 +146,7 @@ and MCP servers are not loaded. You don't need it; without it, everything else s
 | `cancelled` | you answered "no" to the `--ai-ownership` question; nothing was sent or saved |
 | `AI ownership extraction failed (see .../ownership.jsonl)` | Claude Code didn't return a result (not logged in, usage limit, network); run without `--ai-ownership`, or try later |
 | `reader: built-in reader` in the M01 details | fine: PyYAML isn't installed, so a built-in reader was used |
+| E01 `warn`: "only N of 14 labels recognised" | your report uses a style the checker doesn't know; the assignment's field names (`FILES CREATED:` ...) always work. Headings (`## Files Created`), **bold** labels and tables are recognised too. |
 | Lots of FAILs on a new repository | normal before your first `docs/agent-runs/phase-00/` exists (section 4) |
 
 Exit codes, for scripts: `0` = no FAIL among checks that are due, `1` = at least one FAIL,

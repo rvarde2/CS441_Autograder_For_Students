@@ -107,7 +107,8 @@ def main(argv=None):
     if (msg := wrong_folder(repo)):
         print(msg, file=sys.stderr)
         return 2
-    results = run_all(repo)
+    run = run_all(repo)
+    results = run.items
     current = repo.current_phase
     apply_due(results, current)
 
@@ -118,6 +119,10 @@ def main(argv=None):
         Path(args.json).write_text(json.dumps({
             "student": args.student, "version": VERSION, "run_date": RUN_DATE, "repo": root.name,
             "current_phase": current,
+            # FILE INDEX for later grading steps. Valid ONLY for this commit; a grader must regenerate
+            # it on its own copy of the submission rather than trust one it was sent.
+            "index": {"index_version": 1, "commit": (repo.git("rev-parse", "HEAD") or "").strip() or None,
+                      **run.index},
             "ownership_source": repo.ownership["source"] if repo.ownership["rows"] else None,
             "results": results}, indent=2))
     if args.csv:

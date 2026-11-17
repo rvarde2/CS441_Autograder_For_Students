@@ -1,5 +1,5 @@
 {
-  "_about": "ScholarChain requirements as data. Every row quotes the README sentence it enforces (ScholarChain README, commit a139f4a). Edit rows, not code, when the README changes. Kinds: paths (exact path; same file name elsewhere = WARN), dirs_not_empty, scala_defines (definitions in tracked .scala files, comments ignored), markdown_heading, manifest (special: datasets/dataset-manifest.yaml).",
+  "_about": "ScholarChain requirements as data. Every row quotes the README sentence it enforces (ScholarChain README, commit a139f4a). Edit rows, not code, when the README changes. Kinds: paths (exact path; same file name elsewhere = WARN), dirs_not_empty, scala_defines (definitions in tracked .scala files, comments ignored), markdown_heading, manifest (special: datasets/dataset-manifest.yaml). Optional 'index': where this row's findings go in the JSON file index.",
   "readme_commit": "a139f4a",
   "checks": [
     {
@@ -13,7 +13,11 @@
         "project/build.properties",
         "project/plugins.sbt"
       ],
-      "rule": "Phase 2 work order: build.sbt, project/build.properties, project/plugins.sbt"
+      "rule": "Phase 2 work order: build.sbt, project/build.properties, project/plugins.sbt",
+      "index": [
+        "build",
+        "files"
+      ]
     },
     {
       "id": "M01",
@@ -22,7 +26,11 @@
       "level": "FAIL",
       "title": "datasets/dataset-manifest.yaml exists and has a readable datasets section",
       "path": "datasets/dataset-manifest.yaml",
-      "rule": "Create datasets/dataset-manifest.yaml for DBLP and every selected enrichment dataset."
+      "rule": "Create datasets/dataset-manifest.yaml for DBLP and every selected enrichment dataset.",
+      "index": [
+        "datasets",
+        "manifest"
+      ]
     },
     {
       "id": "M02",
@@ -45,7 +53,11 @@
         "datasets/samples",
         "datasets/schemas"
       ],
-      "rule": "Create bounded download and sample-generation scripts under datasets/scripts. Create representative legal sample files under datasets/samples. Create schema notes under datasets/schemas."
+      "rule": "Create bounded download and sample-generation scripts under datasets/scripts. Create representative legal sample files under datasets/samples. Create schema notes under datasets/schemas.",
+      "index": [
+        "datasets",
+        "folders"
+      ]
     },
     {
       "id": "M04",
@@ -75,7 +87,10 @@
         "AnswerClaim",
         "AnswerResponse"
       ],
-      "rule": "Create immutable Scala domain records for WorkRecord, AuthorMention, ... AnswerClaim, and AnswerResponse."
+      "rule": "Create immutable Scala domain records for WorkRecord, AuthorMention, ... AnswerClaim, and AnswerResponse.",
+      "index": [
+        "domain_records"
+      ]
     },
     {
       "id": "W01",
@@ -94,7 +109,11 @@
         "docs/demo-script.md",
         "reports/final-report.md"
       ],
-      "rule": "Phase 17 work order: README.md, docs/architecture.md, docs/data-lineage.md, docs/threat-model.md, docs/service-limits.md, docs/runbook.md, docs/evaluation.md, reports/final-report.md, docs/demo-script.md"
+      "rule": "Phase 17 work order: README.md, docs/architecture.md, docs/data-lineage.md, docs/threat-model.md, docs/service-limits.md, docs/runbook.md, docs/evaluation.md, reports/final-report.md, docs/demo-script.md",
+      "index": [
+        "docs",
+        "phase17"
+      ]
     },
     {
       "id": "W02",
@@ -104,7 +123,11 @@
       "title": "README.md has the subsection 'Reproducing the agentic workflow'",
       "path": "README.md",
       "heading": "Reproducing the agentic workflow",
-      "rule": "The root README must contain a subsection named `Reproducing the agentic workflow`."
+      "rule": "The root README must contain a subsection named `Reproducing the agentic workflow`.",
+      "index": [
+        "docs",
+        "readme_section"
+      ]
     }
   ],
   "observe": {

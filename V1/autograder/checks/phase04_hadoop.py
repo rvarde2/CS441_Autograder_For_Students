@@ -27,6 +27,8 @@ def hadoop(repo, out):
             mentions.add(t)
         if t.endswith(SRC) and (m := MAPPER.search(line)):
             classes[m.group(1)].append(f"{t}:{i}")
+    out.record("hadoop", value={"mappers": classes["Mapper"], "reducers": classes["Reducer"],
+                                "hadoop_files": sorted(mentions)})
     if classes["Mapper"] and classes["Reducer"]:
         status, details = "PASS", [f"{k}: {', '.join(v[:4])}" + (f" (+{len(v) - 4})" if len(v) > 4 else "")
                                    for k, v in classes.items()]
