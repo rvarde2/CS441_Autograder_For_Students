@@ -1,0 +1,83 @@
+{
+  "type": "object",
+  "properties": {
+    "writers": {
+      "type": "array",
+      "description": "One row per (artifact path pattern, agent that may write it). An artifact with two writers gets two rows.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Path or glob exactly as written in the source, e.g. 'src/main/**'. For non-file artifacts (e.g. deployments), a short name."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "files",
+              "non-file"
+            ],
+            "description": "'files' if this is a path in the repository; 'non-file' for things like deployments or cloud resources."
+          },
+          "agent": {
+            "type": "string",
+            "description": "The agent you believe is meant, as named in its .claude/agents/<name>.md frontmatter. Same as name_as_written when they match exactly."
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "co-writer",
+              "limited-writer"
+            ],
+            "description": "owner = the main owner; co-writer = also writes it with no stated limit; limited-writer = may write only under a stated condition."
+          },
+          "condition": {
+            "type": "string",
+            "description": "The stated limit for limited-writer (e.g. 'version bumps, ledger vals only'); empty string otherwise."
+          },
+          "source_file": {
+            "type": "string",
+            "description": "File where this ownership is stated, relative to the repo root."
+          },
+          "source_line": {
+            "type": "integer",
+            "description": "1-based line number in source_file."
+          },
+          "quote": {
+            "type": "string",
+            "description": "A short EXACT substring of that line that states this writer (copy it character for character)."
+          },
+          "name_as_written": {
+            "type": "string",
+            "description": "The writer's name EXACTLY as it appears in the cited line (e.g. 'implementer' or 'oncall-agent'), even if no agent has that name. Never corrected."
+          }
+        },
+        "required": [
+          "path",
+          "kind",
+          "name_as_written",
+          "agent",
+          "role",
+          "condition",
+          "source_file",
+          "source_line",
+          "quote"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Anything ambiguous about ownership that a human should look at. Empty if none."
+    }
+  },
+  "required": [
+    "writers",
+    "notes"
+  ],
+  "additionalProperties": false
+}
