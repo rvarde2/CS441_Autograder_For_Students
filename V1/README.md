@@ -28,6 +28,14 @@ Results are printed and saved in `./selfcheck-results/` (always outside your rep
 - `selfcheck-results.json`: the same results plus an index of where your files are, for tools.
   **Keep it on your computer; don't send it.** Only the CSV is ever shared.
 
+## What's new in 1.0.2
+
+- **A01 (Spark `collect`) gives fewer false warnings.** It no longer flags `collect_set` /
+  `collect_list` (Spark's distributed aggregate functions) or `.collect { case ... }` /
+  `.collect(partialFunction)` (Scala's filter-and-map, or RDD's distributed transformation).
+  Real `.collect()`, `.collectAsMap()`, `.collectAsList()`, `.toLocalIterator` and `.toPandas()`
+  are still reported.
+
 ## What's new in 1.0.1
 
 After the first student feedback (thank you):

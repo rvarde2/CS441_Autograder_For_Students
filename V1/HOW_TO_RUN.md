@@ -64,7 +64,7 @@ Your results are saved either way.
 A run looks like this (a repository that has just finished Phase 0):
 
 ```
-ScholarChain self-check v1.0.1   repo: /home/you/projects/my-scholarchain
+ScholarChain self-check v1.0.2   repo: /home/you/projects/my-scholarchain
 current phase: 0 (highest docs/agent-runs/phase-NN)
 
 [ok  ] S01  No symlinks pointing outside the repo
@@ -78,7 +78,7 @@ current phase: 0 (highest docs/agent-runs/phase-NN)
 17 pass, 0 fail, 0 warn, 6 info, 28 not yet due
 
 Saved: /home/you/CS441_Autograder_For_Students/V1/selfcheck-results/selfcheck-ab123.csv   <- the only file to share
-       /home/you/CS441_Autograder_For_Students/V1/selfcheck-results/selfcheck-results.json   (keep on your computer; grader version 1.0.1)
+       /home/you/CS441_Autograder_For_Students/V1/selfcheck-results/selfcheck-results.json   (keep on your computer; grader version 1.0.2)
 ADVISORY ONLY: this is not your grade. See README.md for what it does and does not check.
 ```
 

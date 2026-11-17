@@ -14,7 +14,14 @@ from ..registry import check_group
 from ..sources import code_lines
 
 SRC = (".scala", ".java", ".py")
-COLLECT = re.compile(r"\.(collect|collectAsList|collectAsMap|toLocalIterator|toPandas)\s*\(?")
+# What counts as bringing data to ONE machine (1.0.2):
+#   .collect() / bare .collect, .collectAsList, .collectAsMap, .toLocalIterator, .toPandas   -> flagged
+#   .collect_set / .collect_list    Spark's DISTRIBUTED aggregate functions                 -> not flagged
+#   .collect { case ... } / .collect(pf)   Scala's filter+map, or RDD's distributed
+#                                          collect(partialFunction) transformation           -> not flagged
+#   (1.0.1 flagged all of these as ".collect"; found in V2 testing.)
+COLLECT = re.compile(r"\.(?:(collect)\b(?!\s*\{)(?!\s*\(\s*[^)\s])"
+                     r"|(collectAsList|collectAsMap|toLocalIterator|toPandas)\b)")
 SPARK = re.compile(r"org\.apache\.spark|pyspark")
 
 
@@ -22,7 +29,7 @@ SPARK = re.compile(r"org\.apache\.spark|pyspark")
 def spark(repo, out):
     spark_files = {t for t, _, line in code_lines(repo, SRC, skip_tests=True) if SPARK.search(line)}
     spark_files |= {t for t in repo.tracked if "spark" in t.lower() and t.endswith(SRC)}
-    hits = [f"{t}:{i}: .{m.group(1)}" for t, i, line in code_lines(repo, SRC, skip_tests=True)
+    hits = [f"{t}:{i}: .{m.group(1) or m.group(2)}" for t, i, line in code_lines(repo, SRC, skip_tests=True)
             if t in spark_files and (m := COLLECT.search(line))]
     out.record("spark", value={"files": sorted(spark_files), "collect_calls": [h.rsplit(": .", 1)[0] for h in hits]})
     if not spark_files:

@@ -5,7 +5,7 @@ ScholarChain assignment, not the assignment repository). It is not your grade.
 
 | Folder | Version | Status |
 |---|---|---|
-| [`V1/`](V1/) | 1.0.1 | current (what's new: [`V1/README.md`](V1/README.md#whats-new-in-101)) |
+| [`V1/`](V1/) | 1.0.2 | current (what's new: [`V1/README.md`](V1/README.md#whats-new-in-102)) |
 
 **Start here:** [`V1/HOW_TO_RUN.md`](V1/HOW_TO_RUN.md) (step by step), then [`V1/README.md`](V1/README.md)
 (what every check means) and [`V1/DESIGN.md`](V1/DESIGN.md) (how each check decides).

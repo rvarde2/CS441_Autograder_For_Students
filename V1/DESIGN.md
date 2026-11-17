@@ -1,6 +1,6 @@
 # CS441 ScholarChain Autograder: V1 design
 
-Version 1.0.1. How the self-check works and exactly how each check decides, for students and
+Version 1.0.2. How the self-check works and exactly how each check decides, for students and
 course staff. How to run it is in `HOW_TO_RUN.md`; what changed in 1.0.1 is in `README.md`.
 It checks a student's OWN project repository (their implementation of the ScholarChain
 assignment), not the ScholarChain assignment repository.
