@@ -20,6 +20,7 @@ missing phase reports) that would otherwise waste a V2 run.
 | jsonschema (Python package) | `python3 -c "import jsonschema"` | If missing: `python3 -m pip install --user jsonschema` |
 | git | `git --version` | |
 | Claude Code, logged in | `claude --version` | 2.1.326 or newer (`claude update`). Log in once by running `claude`. |
+| *or* Antigravity CLI | `agy --version` | Optional: 1.5.11 or newer, logged in. |
 
 ## 2. Keep this folder OUTSIDE your project
 
@@ -51,10 +52,10 @@ If you see `Permission denied`: `bash judge.sh ...`, or once `chmod +x judge.sh`
 ./judge.sh --student <your NetID> ~/projects/my-scholarchain
 ```
 
-It prints the categories it will judge, in project-phase order, and an **estimated cost**, then asks
-`continue? [y/N]`. Each category takes about 1-2 minutes.
+It first asks which AI tool to use (1 = Claude Code with Sonnet, the default; 2 = Antigravity), then prints the
+categories it will judge, in project-phase order, and an **estimated cost**, then asks `continue? [y/N]`. Each category takes about 1-2 minutes.
 
-| Category | From phase | Measured cost per run (API-equivalent) |
+| Category | From phase | Measured cost per run with Opus (API-equivalent; Sonnet, the default, is about 3x lower) |
 |---|---:|---|
 | `dataset_engineering` | 3 | about $0.30-0.55 |
 | `hadoop_mapreduce` | 4 | about $0.45-0.75 |
@@ -67,8 +68,8 @@ Useful options:
 | Option | What it does |
 |---|---|
 | `--category hadoop_mapreduce` | judge only that category (repeat the option for several) |
-| `--runs 2` | two independent runs; items where they disagree are marked for a human. Costs twice as much. |
 | `--include-not-due` | also judge categories whose phase you have not reached (they will mostly be `missing`) |
+| `--adapter claude` / `--adapter antigravity` | choose the AI tool without being asked |
 | `--yes` | do not ask before starting |
 
 ## 5. Read your results
@@ -82,8 +83,8 @@ Results are in `V2/results/<repo>-<time>/`:
   Keep everything else on your computer: it quotes your code.
 
 What the words mean is in `README.md` (section 3) and `RUBRIC.md`. `needs_human = yes` in the CSV means
-"look at this yourself": the code could not confirm that verdict (for example two runs disagreed, or
-nothing in your project seems to call the code the item is about).
+"look at this yourself": the code could not confirm that verdict (for example a citation did not
+match your files, or nothing in your project seems to call the code the item is about).
 
 ## 6. Common problems
 

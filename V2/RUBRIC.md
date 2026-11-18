@@ -1,4 +1,4 @@
-# V2 rubric (version 2.2.1)
+# V2 rubric (version 2.3.0)
 
 Generated from the rubric files in `judge/rubric/` that the AI judge uses, so this page and the judge always
 agree. Every item quotes the ScholarChain README (commit a139f4a).
@@ -101,7 +101,7 @@ README full-credit evidence: *Correct temporal weighted graph, distinct and weig
 | SPARK-07 | At least one bridge measure (betweenness or an approximation, participation coefficient, cross-community degree, or similar) | Evaluation rubric; 'What must be measured': at least one bridge measure |
 | SPARK-08 | k-core / coreness, or a justified equivalent | Evaluation rubric: 'k-core or equivalent' |
 | SPARK-09 | Temporal analysis ("All metrics must be time-aware"). met: the metrics are computed per time period, and the periods are either one per year or come from configuration or job arguments. partial: metrics are computed per period, but the periods are fixed in code, or only some metrics are time-aware. missing: no per-period computation. | Evaluation rubric; 'What must be measured': 'All metrics must be time-aware'; README lines on 'configurable windows' and 'time-window configuration'; definition set after held-out review |
-| SPARK-10 | Tests of the analytics. A metric counts as tested only if a test asserts a specific, hand-checked expected value for it on small fixed data (e.g. a small known graph). met: at least 5 of the 9 metric items SPARK-01..SPARK-09 are tested this way. partial: tests exist, but fewer than 5 metrics are tested this way, or the tests only check that code runs (counts above zero, non-null results). missing: no tests of the analytics. | Evaluation rubric: tests; 'Required test inventory': small known-graph Spark tests; threshold (5 of 9) set after round 1, when two runs disagreed on the same facts |
+| SPARK-10 | Tests of the analytics. A metric counts as tested only if a test asserts a specific, hand-checked expected value for it on small fixed data (e.g. a small known graph). met: at least 5 of the 9 metric items SPARK-01..SPARK-09 are tested this way. partial: tests exist, but fewer than 5 metrics are tested this way, or the tests only check that code runs (counts above zero, non-null results). missing: no tests of the analytics. | Evaluation rubric: tests; 'Required test inventory': small known-graph Spark tests |
 | SPARK-11 | Distributed execution: analytics run in Spark, not by collecting the graph into one process | Evaluation rubric: distributed execution; Phase 6 work order |
 
 | Deduction | Up to | README text |

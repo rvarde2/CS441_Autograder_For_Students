@@ -1,7 +1,7 @@
 """
 grade_category.py (V2 runner): judge ONE rubric category of ONE repository with the AI, then verify.
 
-    python3 -I grade_category.py --category spark_analytics --repo <repo> --out <folder> [--runs 2]
+    python3 -I grade_category.py --category spark_analytics --repo <repo> --out <folder>
                                  [--dry-run]
 
 Nothing in the repository is executed. Steps:
@@ -35,11 +35,12 @@ from autograder.repo import Repo                           # noqa: E402
 
 import injection_scan                                      # noqa: E402
 import pack as packmod                                     # noqa: E402
+from adapters.antigravity import AntigravityAdapter        # noqa: E402
 from adapters.claude import ClaudeAdapter                  # noqa: E402
 from prompt import PROMPT_VERSION, load_rubric, schema_for, system_prompt   # noqa: E402
 from verify import verify                                  # noqa: E402
 
-ADAPTERS = {"claude": ClaudeAdapter}
+ADAPTERS = {"claude": ClaudeAdapter, "antigravity": AntigravityAdapter}
 
 
 def sha(text):
@@ -66,7 +67,6 @@ def main():
     ap.add_argument("--category", required=True)
     ap.add_argument("--repo", required=True)
     ap.add_argument("--out", required=True)
-    ap.add_argument("--runs", type=int)
     ap.add_argument("--adapter", default="claude", choices=sorted(ADAPTERS))
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
@@ -79,7 +79,7 @@ def main():
     adapter = ADAPTERS[a.adapter]()
     if adapter.safety_status != "verified":
         sys.exit(f"refused: adapter {adapter.name} has not passed its safety experiments")
-    runs = a.runs or policy.get("runs_per_category", 1)
+    runs = 1                                           # single run per category (user decision Nov 18)
     out.mkdir(parents=True, exist_ok=True)
 
     # 2-4: facts, pre-scan, pack
@@ -101,11 +101,12 @@ def main():
                           "v1.json": json.dumps({"results": v1.items, "index": index}, indent=2)}.items():
         (out / name).write_text(content)
 
+    model = (policy.get(adapter.name) or {}).get("model", policy["model"]) if isinstance(policy.get(adapter.name), dict) else policy["model"]
     provenance = {
         "category": a.category, "repo": repo_root.name, "commit": index["commit"],
         "rubric_sha": sha(json.dumps(rubric, sort_keys=True)), "prompt_version": PROMPT_VERSION,
         "system_prompt_sha": sha(system), "schema_sha": sha(json.dumps(schema, sort_keys=True)),
-        "policy_version": policy["policy_version"], "model": policy["model"], "adapter": adapter.name,
+        "policy_version": policy["policy_version"], "model": model, "adapter": adapter.name,
         "tool_version": adapter.version(), "v1_version": V1_VERSION,
         "date": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"), "runs": runs,
         "dry_run": a.dry_run}
@@ -171,12 +172,12 @@ def combine(rubric, reports):
 
 def to_markdown(r):
     lines = [f"# {r.get('provenance', {}).get('category', '')}: {r.get('provenance', {}).get('repo', '')}", "",
-             f"valid runs: {r['runs_valid']}; coverage: {r['coverage']}", "", "| Item | Verdict | Runs | Flags |", "|---|---|---|---|"]
+             f"coverage of the evidence pack: {r['coverage']}", "", "| Item | Verdict | Flags |", "|---|---|---|"]
     for i, v in r["items"].items():
-        lines.append(f"| {i} | {v['verdict']} | {', '.join(v['per_run'])} | {'; '.join(v['flags'])} |")
-    lines += ["", "| Deduction | Applies | Severity | Runs |", "|---|---|---|---|"]
+        lines.append(f"| {i} | {v['verdict']} | {'; '.join(v['flags'])} |")
+    lines += ["", "| Deduction | Applies | Severity |", "|---|---|---|"]
     for i, v in r["deductions"].items():
-        lines.append(f"| {i} | {v['applies']} | {v['severity']} | {v['per_run']} |")
+        lines.append(f"| {i} | {v['applies']} | {v['severity']} |")
     lines += ["", f"human queue: {', '.join(r['human_queue']) or 'none'}",
               f"integrity notes: {len(r['integrity_notes'])}; pre-scan HIGH missed by the AI: {r['prescan_high_missed'] or 'none'}",
               f"flags: {r['flags'] or 'none'}"]

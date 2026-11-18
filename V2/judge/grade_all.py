@@ -3,7 +3,7 @@ grade_all.py (V2 entry point): judge every SHIPPED and DUE rubric category of on
 the AI, then write one CSV of verdicts. Students run it on their own repo (advisory); the instructor
 runs the same code on fresh clones for grading.
 
-    python3 -I grade_all.py <repo> [--student NETID] [--category ID ...] [--runs N]
+    python3 -I grade_all.py <repo> [--student NETID] [--category ID ...]
                             [--include-not-due] [--yes] [--dry-run] [--out DIR]
 
 Shipped categories = the rubric files present in rubric/ (the package decides, not this code).
@@ -28,14 +28,15 @@ from autograder.repo import Repo                         # noqa: E402
 V2_VERSION = (HERE / "VERSION").read_text().strip() if (HERE / "VERSION").exists() else "dev"
 # Measured cost per run (API-equivalent USD; on a Pro plan it counts against your usage instead).
 COST = {"spark_analytics": (0.15, 0.35), "dataset_engineering": (0.30, 0.55), "hadoop_mapreduce": (0.45, 0.75)}
+# COST was measured with claude-opus-5-5; claude-sonnet-5-5 measured about 0.3x of that (Nov 18, 1 run).
+SONNET_FACTOR = 0.3
 CSV_COLUMNS = ["student", "repo", "commit", "v2_version", "model", "prompt_version", "rubric_sha", "run_date",
-               "current_phase", "category", "id", "kind", "verdict", "severity", "per_run", "needs_human",
+               "current_phase", "category", "id", "kind", "verdict", "severity", "needs_human",
                "human_reasons", "category_integrity_notes", "category_cost_usd"]
 # Why an item needs a human, as FIXED codes (flag text can contain student file names: never copied).
 REASON_CODES = [("unsupported: no verified citation", "citation_mismatch"), ("absence not checked", "absence_unchecked"),
                 ("absence_check doesn't match", "absence_unverified"), ("not called by the job", "not_called"),
-                ("V1 contradiction", "v1_contradiction"), ("always confirmed by a human", "always_human"),
-                ("runs disagree", "runs_disagree")]
+                ("V1 contradiction", "v1_contradiction"), ("always confirmed by a human", "always_human")]
 
 
 def human_reasons(item):
@@ -73,6 +74,37 @@ def check_claude(policy):
     return out.strip()
 
 
+def check_antigravity(policy):
+    try:
+        out = subprocess.run(["agy", "--version"], capture_output=True, text=True, timeout=30).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        sys.exit("V2 with --adapter antigravity needs the Antigravity CLI (`agy`). Install it and log in first.")
+    tested_str = (policy.get("antigravity") or {}).get("agy_tested", "1.5.11")
+    have, tested = version_tuple(out), version_tuple(tested_str)
+    if have is None:
+        sys.exit(f"could not read the Antigravity CLI version from: {out.strip()!r}")
+    if have < tested:
+        sys.exit(f"Antigravity CLI {out.strip()} is older than {tested_str}, the version whose safety "
+                 f"flags (--sandbox, --disable-slash-commands, --settings) were tested. Update `agy` first.")
+    if have > tested:
+        print(f"note: Antigravity CLI {'.'.join(map(str, have))} is newer than the tested {tested_str}.")
+    return f"agy {out.strip()}"
+
+
+def choose_tool(policy, ask):
+    """Ask which AI tool to use; Claude (with the policy's default model) unless the user picks Antigravity.
+    Without a terminal (scripts, --yes, --dry-run) the default is used without asking."""
+    claude_model = policy["model"]
+    agy_model = (policy.get("antigravity") or {}).get("model", "?")
+    if not ask:
+        return "claude"
+    print("Which AI tool should judge your repository?")
+    print(f"  1) Claude Code   (model {claude_model})   [default]")
+    print(f"  2) Antigravity   (model {agy_model})")
+    choice = input("choose 1 or 2 [1]: ").strip()
+    return "antigravity" if choice in ("2", "antigravity", "a") else "claude"
+
+
 def safe_cell(v):
     """CSV formula-injection guard (a repo name is chosen by the student)."""
     s = str(v)
@@ -84,7 +116,9 @@ def main():
     ap.add_argument("repo", help="your ScholarChain repository (its root folder)")
     ap.add_argument("--student", default="", help="your NetID (goes into the CSV)")
     ap.add_argument("--category", action="append", help="judge only this category (repeatable)")
-    ap.add_argument("--runs", type=int, default=1, help="runs per category (default 1)")
+    a_runs = 1                                         # always ONE run per category (user decision Nov 18)
+    ap.add_argument("--adapter", choices=("claude", "antigravity"),
+                    help="AI tool: claude or antigravity. If omitted you are asked (default: claude).")
     ap.add_argument("--include-not-due", action="store_true", help="also judge categories whose phase is not reached")
     ap.add_argument("--yes", action="store_true", help="do not ask before starting the AI runs")
     ap.add_argument("--dry-run", action="store_true", help="build everything the AI would get; no AI call, no cost")
@@ -116,13 +150,21 @@ def main():
         print("nothing to judge yet.")
         return 0
 
-    tool = "dry run" if a.dry_run else check_claude(policy)
-    lo = sum(COST.get(c, (0.3, 0.6))[0] for c, _ in plan) * a.runs
-    hi = sum(COST.get(c, (0.3, 0.6))[1] for c, _ in plan) * a.runs
-    print(f"will judge: {', '.join(c for c, _ in plan)}  ({a.runs} run(s) each, model {policy['model']}, {tool})")
+    if a.adapter is None:
+        a.adapter = choose_tool(policy, ask=sys.stdin.isatty() and not a.yes and not a.dry_run)
+    check_fn = check_antigravity if a.adapter == "antigravity" else check_claude
+    tool = "dry run" if a.dry_run else check_fn(policy)
+    model = (policy.get(a.adapter) or {}).get("model", policy["model"]) if isinstance(policy.get(a.adapter), dict) else policy["model"]
+    lo = sum(COST.get(c, (0.3, 0.6))[0] for c, _ in plan) * a_runs
+    hi = sum(COST.get(c, (0.3, 0.6))[1] for c, _ in plan) * a_runs
+    print(f"will judge: {', '.join(c for c, _ in plan)}  (model {model}, {tool})")
     if not a.dry_run:
-        print(f"estimated cost: ${lo:.2f}-${hi:.2f} API-equivalent (on a subscription this uses your plan's usage), "
-              f"about 1-2 minutes per run")
+        if a.adapter == "antigravity":
+            print("cost: uses your Antigravity (Google) quota; about 1-2 minutes per run")
+        else:
+            f = SONNET_FACTOR if "sonnet" in model else 1.0
+            print(f"estimated cost: ${lo * f:.2f}-${hi * f:.2f} API-equivalent (on a subscription this uses your plan's "
+                  f"usage), about 1-2 minutes per run")
         if not a.yes:
             if not sys.stdin.isatty() or input("continue? [y/N] ").strip().lower() not in ("y", "yes"):
                 print("stopped; nothing was sent.")
@@ -137,7 +179,7 @@ def main():
         print(f"\n== {c}")
         # same isolation as this process: -I (instructor) or -E (student wrapper: keeps pip --user packages)
         cmd = [sys.executable, "-I" if sys.flags.isolated else "-E", str(HERE / "grade_category.py"), "--category", c, "--repo", str(repo_root),
-               "--out", str(out / c), "--runs", str(a.runs)] + (["--dry-run"] if a.dry_run else [])
+               "--out", str(out / c), "--adapter", a.adapter] + (["--dry-run"] if a.dry_run else [])
         sys.stdout.flush()                               # keep our lines before the child's output
         r = subprocess.run(cmd)
         res_file = out / c / "result.json"
@@ -154,12 +196,12 @@ def main():
         cost = round(sum((u or {}).get("total_cost_usd") or 0 for u in res.get("usage", [])), 4)
         tail = [len(res.get("integrity_notes", [])), cost]           # counts only: note text quotes student code
         for i, v in res["items"].items():
-            rows.append(base + [i, "item", v["verdict"], "", "/".join(v["per_run"]), "yes" if i in human else "no",
+            rows.append(base + [i, "item", v["verdict"], "", "yes" if i in human else "no",
                                 human_reasons(v) if i in human else ""] + tail)
         for d, v in res["deductions"].items():
             dh = v["applies"] == "cannot_tell"
-            rows.append(base + [d, "deduction", v["applies"], v["severity"], "/".join(f"{x[0]}:{x[1]}" for x in v["per_run"]),
-                                "yes" if dh else "no", ("runs_disagree" if len(v["per_run"]) > 1 else "cannot_tell") if dh else ""]
+            rows.append(base + [d, "deduction", v["applies"], v["severity"],
+                                "yes" if dh else "no", "cannot_tell" if dh else ""]
                         + tail)
         if res["runs_valid"] == 0:
             summary.append(f"{c}: no valid run (see {out / c}/result.md)")

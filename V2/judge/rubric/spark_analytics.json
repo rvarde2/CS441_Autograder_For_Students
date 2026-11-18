@@ -54,7 +54,7 @@
     {
       "id": "SPARK-10",
       "text": "Tests of the analytics. A metric counts as tested only if a test asserts a specific, hand-checked expected value for it on small fixed data (e.g. a small known graph). met: at least 5 of the 9 metric items SPARK-01..SPARK-09 are tested this way. partial: tests exist, but fewer than 5 metrics are tested this way, or the tests only check that code runs (counts above zero, non-null results). missing: no tests of the analytics.",
-      "source": "Evaluation rubric: tests; 'Required test inventory': small known-graph Spark tests; threshold (5 of 9) set after round 1, when two runs disagreed on the same facts"
+      "source": "Evaluation rubric: tests; 'Required test inventory': small known-graph Spark tests"
     },
     {
       "id": "SPARK-11",

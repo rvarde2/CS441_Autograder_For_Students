@@ -29,6 +29,7 @@ usage for nothing. Use `--include-not-due` to judge it anyway.
 | Python 3.8+ | `python3 --version` | |
 | jsonschema | `python3 -c "import jsonschema"` | If missing: `python3 -m pip install --user jsonschema` |
 | Claude Code, logged in | `claude --version` | Version 2.1.326 or newer (`claude update`). |
+| *or* Antigravity CLI, logged in | `agy --version` | Optional second AI tool; version 1.5.11 or newer. |
 
 **It uses your own Claude usage.** One run of one category costs roughly the same as a short
 Claude Code session (measured, API-equivalent: about $0.30-0.55 for `dataset_engineering`, $0.45-0.75 for `hadoop_mapreduce`,
@@ -38,6 +39,12 @@ starting. Each run takes 1-2 minutes.
 
 ## 2. Run it
 
+When you start a real run, V2 asks which AI tool to use: **1) Claude Code** (model `claude-sonnet-5-5`, the
+default) or **2) Antigravity** (model `gemini-4-argon-medium`, uses your Google quota). `--adapter claude` or
+`--adapter antigravity` skips the question. The Claude judge is the one measured against our labelled test
+repositories; the Antigravity judge has the same safety rules but has not been measured yet, so treat its
+verdicts with extra care.
+
 Keep this folder OUTSIDE your project (like V1):
 
 ```bash
@@ -46,8 +53,8 @@ cd ~/CS441_Autograder_For_Students/V2
 ./judge.sh --student <your NetID> ~/projects/my-scholarchain             # the real run (asks first)
 ```
 
-Options: `--category dataset_engineering` (only that one; repeatable), `--runs 2` (two independent runs; items
-where they disagree are marked for a human), `--yes` (don't ask), `--include-not-due`.
+Options: `--category dataset_engineering` (only that one; repeatable), `--yes` (don't ask), `--include-not-due`.
+Each category is judged once per run of the script.
 
 ## 3. Read the results
 
@@ -63,7 +70,7 @@ Verdicts: `met`, `partial`, `missing`, `cannot_tell` (the judge could not decide
 Reasons are in `result.json` (`items.<ID>.reason`). Every item is explained in [`RUBRIC.md`](RUBRIC.md).
 
 `needs_human = yes` means a verdict the code could not confirm (a citation that didn't match your
-files, two runs that disagreed, low confidence, or a contradiction with V1's facts). Treat those as
+files, low confidence, or a contradiction with V1's facts). Treat those as
 "look at this yourself", not as wrong.
 
 ## 4. How it stays safe
@@ -79,5 +86,6 @@ files, two runs that disagreed, low confidence, or a contradiction with V1's fac
 ## 5. Limits
 
 - The judge reads code; it can't tell whether something ran on AWS or produced correct numbers.
-- Two runs can disagree on borderline items; that's why such items are marked `needs_human`.
+- Borderline items can be judged differently than a human would; `needs_human` marks the verdicts the code could
+  not confirm, so look at those yourself.
 - It judges only what this version's rubric files cover.
