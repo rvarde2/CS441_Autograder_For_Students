@@ -10,6 +10,7 @@ V1 checks structure and process deterministically; V2 judges the content. Use bo
 
 | Category | Rubric points | Judged from phase | Status |
 |---|---:|---:|---|
+| `dataset_engineering` (Dataset engineering) | 1.0 | 3 | available |
 | `spark_analytics` (Spark coauthorship analytics) | 3.0 | 6 | available |
 | other categories | | | coming in later versions (`git pull`) |
 
@@ -27,7 +28,7 @@ usage for nothing. Use `--include-not-due` to judge it anyway.
 | Claude Code, logged in | `claude --version` | Version 2.1.326 or newer (`claude update`). |
 
 **It uses your own Claude usage.** One run of one category costs roughly the same as a short
-Claude Code session (measured: about $0.15-0.35 API-equivalent for `spark_analytics`; on a
+Claude Code session (measured, API-equivalent: about $0.15-0.35 for `spark_analytics`, $0.30-0.55 for `dataset_engineering`; on a
 subscription it counts against your plan's usage). The script shows the estimate and asks before
 starting. Each run takes 1-2 minutes.
 
@@ -41,7 +42,7 @@ cd ~/CS441_Autograder_For_Students/V2
 ./judge.sh --student <your NetID> ~/projects/my-scholarchain             # the real run (asks first)
 ```
 
-Options: `--category spark_analytics` (only that one), `--runs 2` (two independent runs; items
+Options: `--category dataset_engineering` (only that one; repeatable), `--runs 2` (two independent runs; items
 where they disagree are marked for a human), `--yes` (don't ask), `--include-not-due`.
 
 ## 3. Read the results
@@ -50,7 +51,7 @@ Results go to `V2/results/<repo>-<time>/`:
 
 | File | What it is | Share? |
 |---|---|---|
-| `v2-<NetID>-<time>.csv` | one row per rubric item / deduction: verdict, severity, needs_human | **yes, only this file**, when your instructor asks |
+| `v2-<NetID>-<time>.csv` | one row per rubric item / deduction: verdict, severity, needs_human + reason codes, counts of integrity notes, cost (no text from your code) | **yes, only this file**, when your instructor asks |
 | `<category>/result.md` | the verdict table | no (keep it) |
 | `<category>/result.json`, `run-*.json*` | reasons, citations from your code, the full trace | **no** (contains your code) |
 

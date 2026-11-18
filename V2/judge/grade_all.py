@@ -29,7 +29,26 @@ V2_VERSION = (HERE / "VERSION").read_text().strip() if (HERE / "VERSION").exists
 # Measured cost per run (API-equivalent USD; on a Pro plan it counts against your usage instead).
 COST = {"spark_analytics": (0.15, 0.35), "dataset_engineering": (0.30, 0.55), "hadoop_mapreduce": (0.20, 0.50)}
 CSV_COLUMNS = ["student", "repo", "commit", "v2_version", "model", "prompt_version", "rubric_sha", "run_date",
-               "category", "id", "kind", "verdict", "severity", "per_run", "needs_human"]
+               "current_phase", "category", "id", "kind", "verdict", "severity", "per_run", "needs_human",
+               "human_reasons", "category_integrity_notes", "category_cost_usd"]
+# Why an item needs a human, as FIXED codes (flag text can contain student file names: never copied).
+REASON_CODES = [("unsupported: no verified citation", "citation_mismatch"), ("absence not checked", "absence_unchecked"),
+                ("absence_check doesn't match", "absence_unverified"), ("not called by the job", "not_called"),
+                ("V1 contradiction", "v1_contradiction"), ("always confirmed by a human", "always_human"),
+                ("runs disagree", "runs_disagree")]
+
+
+def human_reasons(item):
+    codes = []
+    for flag in item.get("flags", []):
+        code = next((c for prefix, c in REASON_CODES if str(flag).startswith(prefix)), "other")
+        if code not in codes:
+            codes.append(code)
+    if "low" in item.get("confidence", []):
+        codes.append("low_confidence")
+    if item.get("verdict") == "cannot_tell" and not codes:
+        codes.append("cannot_tell")
+    return ";".join(codes)
 
 
 def version_tuple(s):
@@ -88,6 +107,7 @@ def main():
     for c in wanted:
         due = min(json.loads((HERE / "rubric" / f"{c}.json").read_text())["evidence"].get("phases") or [0])
         (plan if phase is None or due <= phase or a.include_not_due else skipped).append((c, due))
+    plan.sort(key=lambda x: (x[1], x[0]))                # project phase order: datasets (3) before spark (6)
     print(f"ScholarChain V2 {V2_VERSION}   repo: {repo_root}")
     print(f"current phase: {phase if phase is not None else 'unknown (no docs/agent-runs/phase-NN): every category is due'}")
     for c, due in skipped:
@@ -130,12 +150,17 @@ def main():
             continue
         pv, human = res["provenance"], set(res.get("human_queue", []))
         base = [a.student, repo_root.name, pv["commit"], V2_VERSION, pv["model"], pv["prompt_version"],
-                pv["rubric_sha"], pv["date"], c]
+                pv["rubric_sha"], pv["date"], "" if phase is None else phase, c]
+        cost = round(sum((u or {}).get("total_cost_usd") or 0 for u in res.get("usage", [])), 4)
+        tail = [len(res.get("integrity_notes", [])), cost]           # counts only: note text quotes student code
         for i, v in res["items"].items():
-            rows.append(base + [i, "item", v["verdict"], "", "/".join(v["per_run"]), "yes" if i in human else "no"])
+            rows.append(base + [i, "item", v["verdict"], "", "/".join(v["per_run"]), "yes" if i in human else "no",
+                                human_reasons(v) if i in human else ""] + tail)
         for d, v in res["deductions"].items():
+            dh = v["applies"] == "cannot_tell"
             rows.append(base + [d, "deduction", v["applies"], v["severity"], "/".join(f"{x[0]}:{x[1]}" for x in v["per_run"]),
-                                "yes" if v["applies"] == "cannot_tell" else "no"])
+                                "yes" if dh else "no", ("runs_disagree" if len(v["per_run"]) > 1 else "cannot_tell") if dh else ""]
+                        + tail)
         if res["runs_valid"] == 0:
             summary.append(f"{c}: no valid run (see {out / c}/result.md)")
         else:
