@@ -14,11 +14,14 @@ import re
 from ..registry import check_group
 
 # Start of a test case: munit/ScalaTest `test("...")`, `property("...")`, `it("...")`,
-# ScalaTest `"x" should "y" in {` / `"x" in {`, and Python `def test_x(`.
+# ScalaTest `"x" should "y" in {` / `"x" in {`, Python `def test_x(`, and JUnit 4/5 annotations
+# (`@Test`, `@ParameterizedTest`, `@RepeatedTest`, `@TestFactory`) in Java or Scala (added in 1.0.3).
 TEST_START = re.compile(r'^\s*(?:test|property|it)\s*\(\s*"|^\s*"[^"]+"\s+(?:in|should|must)\s*\{|'
-                        r'^\s*def\s+test_\w+\s*\(')
+                        r'^\s*def\s+test_\w+\s*\(|'
+                        r'^\s*@(?:Test|ParameterizedTest|RepeatedTest|TestFactory)\b')
 ASSERTION = re.compile(r"assert|expect|should|intercept|check\(|forAll|\bmust\b|fail\(")
-TRIVIAL = re.compile(r"assert\s*\(\s*true\s*\)|!=\s*null|\bnotNull\b|isDefined\b|nonEmpty\b|"
+TRIVIAL = re.compile(r"assert\s*\(\s*true\s*\)|assertTrue\s*\(\s*true\s*\)|!=\s*null|\bnotNull\b|assertNotNull\b|"
+                     r"isDefined\b|nonEmpty\b|"
                      r"assert\s*\(\s*\w+\s*\)\s*$")
 TEST_FILE = re.compile(r"(^|/)(src/test|tests?)/|Test\w*\.(scala|java)$|_test\.py$|test_\w+\.py$")
 
@@ -37,8 +40,10 @@ def tests(repo, out):
         # plus the lines up to the next test. Weak = no assertion, or only trivial ones.
         # (An earlier version skipped the test's own line, so every one-line test looked empty.)
         for k, s in enumerate(starts):
-            own = lines[s][TEST_START.search(lines[s]).end():]
-            own = own.split('"', 1)[1] if own.count('"') else own        # drop the rest of the test name
+            m = TEST_START.search(lines[s])
+            own = lines[s][m.end():]
+            if m.group(0).endswith('"') and own.count('"'):               # quoted test name: drop its rest
+                own = own.split('"', 1)[1]                                 # (never for @Test: would cut code)
             body = [own] + lines[s + 1:(starts[k + 1] if k + 1 < len(starts) else len(lines))]
             asserts = [l for l in body if ASSERTION.search(l)]
             if not asserts:

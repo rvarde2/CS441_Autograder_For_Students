@@ -28,6 +28,13 @@ Results are printed and saved in `./selfcheck-results/` (always outside your rep
 - `selfcheck-results.json`: the same results plus an index of where your files are, for tools.
   **Keep it on your computer; don't send it.** Only the CSV is ever shared.
 
+## What's new in 1.0.3
+
+- **T01 (25 meaningful tests) now counts JUnit tests.** Java (or Scala) tests written with `@Test`,
+  `@ParameterizedTest`, `@RepeatedTest` or `@TestFactory` were not counted before, so projects with
+  Java tests could get a wrong FAIL. A test that only asserts non-null (`assertNotNull`) or
+  `assertTrue(true)` still counts as trivial. Nothing changes for Scala munit/ScalaTest or Python tests.
+
 ## What's new in 1.0.2
 
 - **A01 (Spark `collect`) gives fewer false warnings.** It no longer flags `collect_set` /
