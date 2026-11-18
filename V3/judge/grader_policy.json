@@ -1,0 +1,87 @@
+{
+  "_about": "The FIXED, predetermined settings of every V2 AI-grading run. The runner refuses to start if a required flag is missing, and records this file's policy_version and the Claude Code version in every report. Change only deliberately, with a re-run of the injection test repos.",
+  "policy_version": 2,
+  "claude_code_tested": "2.1.326",
+  "model": "claude-sonnet-5-5",
+  "tools": [
+    "Read",
+    "Glob",
+    "Grep"
+  ],
+  "forbidden_tools": [
+    "Bash",
+    "Write",
+    "Edit",
+    "MultiEdit",
+    "NotebookEdit",
+    "WebFetch",
+    "WebSearch",
+    "Task",
+    "Agent"
+  ],
+  "required_flags": [
+    "--restricted",
+    "--strict-mcp-config"
+  ],
+  "why": {
+    "--restricted": "student CLAUDE.md/hooks/settings are not loaded (exp. 1) and Read/Glob/Grep are confined to the repo, incl. symlinks and ../ (exp. 4)",
+    "--strict-mcp-config": "no MCP servers from the student's .mcp.json or the account start (exp. 2)",
+    "tools": "read-only; Grep lets the model check for absence; no shell, no writes, no web",
+    "model": "an exact model ID, never an alias, so it can't change under us. Nov 18 (user): mid-level model by default to cut cost; V2 measurements before policy 2 were made with claude-opus-5-5."
+  },
+  "output": {
+    "format": "stream-json",
+    "schema": "judgement.schema.json",
+    "trace_kept": true
+  },
+  "runs_per_category": 1,
+  "antigravity": {
+    "agy_tested": "1.5.11",
+    "model": "gemini-4-argon-medium",
+    "tools": [
+      "view_file",
+      "read_file",
+      "grep_search",
+      "code_search",
+      "find_by_name",
+      "list_dir"
+    ],
+    "forbidden_tools": [
+      "run_command",
+      "write_file",
+      "edit_file",
+      "search_web",
+      "invoke_subagent",
+      "define_subagent",
+      "manage_subagents",
+      "run_workflow",
+      "swarm",
+      "schedule"
+    ],
+    "required_flags": [
+      "--sandbox",
+      "--disable-slash-commands"
+    ],
+    "settings": {
+      "allowNonWorkspaceAccess": false,
+      "disableSlashCommands": true,
+      "enableTerminalSandbox": true,
+      "permissions": {
+        "allow": [
+          "read_file(*)"
+        ],
+        "deny": [
+          "write_file(*)",
+          "command(*)",
+          "mcp(*)",
+          "read_url(*)",
+          "execute_url(*)",
+          "download_url(*)",
+          "unsandboxed(*)"
+        ]
+      },
+      "trustedWorkspaces": []
+    }
+  },
+  "operational": "Run grading as a dedicated OS user whose home holds no secrets. Re-run the injection and experiment-4 test repos after every Claude Code upgrade."
+}
