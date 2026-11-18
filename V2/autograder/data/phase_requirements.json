@@ -1,0 +1,252 @@
+{
+  "_about": "ScholarChain requirements as data. Every row quotes the README sentence it enforces (ScholarChain README, commit a139f4a). Edit rows, not code, when the README changes. Kinds: paths (exact path; same file name elsewhere = WARN), dirs_not_empty, scala_defines (definitions in tracked .scala files, comments ignored), markdown_heading, manifest (special: datasets/dataset-manifest.yaml). Optional 'index': where this row's findings go in the JSON file index.",
+  "readme_commit": "a139f4a",
+  "checks": [
+    {
+      "id": "B01",
+      "phase": 2,
+      "kind": "paths",
+      "level": "FAIL",
+      "title": "Build skeleton files: build.sbt, project/build.properties, project/plugins.sbt",
+      "paths": [
+        "build.sbt",
+        "project/build.properties",
+        "project/plugins.sbt"
+      ],
+      "rule": "Phase 2 work order: build.sbt, project/build.properties, project/plugins.sbt",
+      "index": [
+        "build",
+        "files"
+      ]
+    },
+    {
+      "id": "M01",
+      "phase": 3,
+      "kind": "manifest",
+      "level": "FAIL",
+      "title": "datasets/dataset-manifest.yaml exists and has a readable datasets section",
+      "path": "datasets/dataset-manifest.yaml",
+      "rule": "Create datasets/dataset-manifest.yaml for DBLP and every selected enrichment dataset.",
+      "index": [
+        "datasets",
+        "manifest"
+      ]
+    },
+    {
+      "id": "M02",
+      "phase": 3,
+      "kind": "manifest_datasets",
+      "level": "FAIL",
+      "title": "The manifest lists DBLP plus at least three additional datasets",
+      "min_datasets": 4,
+      "must_include": "dblp",
+      "rule": "DBLP plus at least three additional datasets are represented in the manifest (Baseline submission)."
+    },
+    {
+      "id": "M03",
+      "phase": 3,
+      "kind": "dirs_not_empty",
+      "level": "FAIL",
+      "title": "datasets/scripts, datasets/samples, datasets/schemas exist and are not empty",
+      "paths": [
+        "datasets/scripts",
+        "datasets/samples",
+        "datasets/schemas"
+      ],
+      "rule": "Create bounded download and sample-generation scripts under datasets/scripts. Create representative legal sample files under datasets/samples. Create schema notes under datasets/schemas.",
+      "index": [
+        "datasets",
+        "folders"
+      ]
+    },
+    {
+      "id": "M04",
+      "phase": 3,
+      "kind": "scala_defines",
+      "level": "FAIL",
+      "title": "The 20 Scala domain records named in Phase 3 are defined",
+      "names": [
+        "WorkRecord",
+        "AuthorMention",
+        "CanonicalResearcher",
+        "AuthorshipRecord",
+        "PublicationTeam",
+        "CoauthorPairCandidate",
+        "CoauthorEdge",
+        "ResearcherMetrics",
+        "Venue",
+        "Institution",
+        "Topic",
+        "Provenance",
+        "MatchDecision",
+        "GraphNode",
+        "GraphEdge",
+        "EvidenceItem",
+        "EvidenceBundle",
+        "QueryPlan",
+        "AnswerClaim",
+        "AnswerResponse"
+      ],
+      "rule": "Create immutable Scala domain records for WorkRecord, AuthorMention, ... AnswerClaim, and AnswerResponse.",
+      "index": [
+        "domain_records"
+      ]
+    },
+    {
+      "id": "W01",
+      "phase": 17,
+      "kind": "paths",
+      "level": "FAIL",
+      "title": "Phase 17 documents exist at the paths the work order names",
+      "paths": [
+        "README.md",
+        "docs/architecture.md",
+        "docs/data-lineage.md",
+        "docs/threat-model.md",
+        "docs/service-limits.md",
+        "docs/runbook.md",
+        "docs/evaluation.md",
+        "docs/demo-script.md",
+        "reports/final-report.md"
+      ],
+      "rule": "Phase 17 work order: README.md, docs/architecture.md, docs/data-lineage.md, docs/threat-model.md, docs/service-limits.md, docs/runbook.md, docs/evaluation.md, reports/final-report.md, docs/demo-script.md",
+      "index": [
+        "docs",
+        "phase17"
+      ]
+    },
+    {
+      "id": "W02",
+      "phase": 17,
+      "kind": "markdown_heading",
+      "level": "FAIL",
+      "title": "README.md has the subsection 'Reproducing the agentic workflow'",
+      "path": "README.md",
+      "heading": "Reproducing the agentic workflow",
+      "rule": "The root README must contain a subsection named `Reproducing the agentic workflow`.",
+      "index": [
+        "docs",
+        "readme_section"
+      ]
+    }
+  ],
+  "observe": {
+    "scripts": {
+      "phase": 13,
+      "rule": "Required scripts or equivalent commands",
+      "named": [
+        "scripts/check.sh",
+        "scripts/package.sh",
+        "scripts/plan.sh",
+        "scripts/deploy.sh",
+        "scripts/smoke-test.sh",
+        "scripts/run-bounded-pipeline.sh",
+        "scripts/run-experiment.sh",
+        "scripts/archive-evidence.sh",
+        "scripts/cleanup.sh"
+      ]
+    },
+    "report_items": {
+      "2": [
+        "complete version ledger",
+        "module dependency graph",
+        "environment input surface",
+        "packaging choices",
+        "compatibility risk"
+      ],
+      "3": [
+        "sample serialized records",
+        "stable ID formulas",
+        "pair canonicalization rule",
+        "configuration precedence",
+        "schema versions",
+        "unresolved dataset questions"
+      ],
+      "4": [
+        "job graph",
+        "mapper and reducer key-value contracts",
+        "partition counts",
+        "counters",
+        "rejected records",
+        "output paths",
+        "maximum observed team size",
+        "largest pair expansion",
+        "largest observed blocking group"
+      ],
+      "5": [
+        "policy version",
+        "feature definitions",
+        "thresholds",
+        "model and prompt versions",
+        "confusion matrix",
+        "unresolved rate",
+        "representative errors"
+      ],
+      "6": [
+        "stage DAGs",
+        "partition counts",
+        "shuffle metrics",
+        "graph counts",
+        "component counts",
+        "community counts",
+        "metric distributions",
+        "path-test results",
+        "temporal windows",
+        "rejected integrity violations",
+        "output paths"
+      ],
+      "7": [
+        "schemas",
+        "keys",
+        "indexes",
+        "metadata fields",
+        "batch sizes",
+        "retry policy",
+        "idempotency strategy",
+        "service limits",
+        "cleanup procedures"
+      ],
+      "8": [
+        "throughput",
+        "rejected records",
+        "duplicate handling",
+        "query latency samples",
+        "index counts",
+        "metadata schema",
+        "embedding model version"
+      ],
+      "9": [
+        "prompt versions",
+        "schemas",
+        "allowed plan operations",
+        "identity-resolution behavior",
+        "graph query templates",
+        "verification rules",
+        "abstention behavior",
+        "benchmark results",
+        "known failure modes"
+      ],
+      "10": [
+        "route table",
+        "status-code mapping",
+        "timeout policy",
+        "dependency graph",
+        "authentication method",
+        "exact test counts"
+      ],
+      "11": [
+        "exact test counts",
+        "failures",
+        "coverage by requirement",
+        "residual risks"
+      ],
+      "13": [
+        "command lines",
+        "required environment variables",
+        "human approval points",
+        "generated evidence",
+        "rollback behavior"
+      ]
+    }
+  }
+}

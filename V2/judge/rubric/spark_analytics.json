@@ -1,0 +1,144 @@
+{
+  "_about": "Rubric data for ONE category, used to fill prompts/judge_system.md and to build the judgement schema (same ids in both). Every item and deduction cites where in the ScholarChain README (commit a139f4a) its wording comes from. Edit this file, not code, when the README changes. 'v1_links': known links between an item and a V1 check; a contradiction is flagged for a human (never overruled).",
+  "readme_commit": "a139f4a",
+  "category_id": "spark_analytics",
+  "category_name": "Spark coauthorship analytics",
+  "rubric_points": 3.0,
+  "readme_full_credit": "Correct temporal weighted graph, distinct and weighted degree, team-size metrics, components, paths, communities, bridge measure, k-core or equivalent, temporal analysis, tests, and distributed execution.",
+  "items": [
+    {
+      "id": "SPARK-01",
+      "text": "Temporal weighted coauthorship graph: edges weighted by joint publications, with first and last collaboration year",
+      "source": "Evaluation rubric; 'What must be measured': jointPublicationCount, firstCollaborationYear, lastCollaborationYear"
+    },
+    {
+      "id": "SPARK-02",
+      "text": "Distinct coauthor count and weighted degree per researcher",
+      "source": "Evaluation rubric; 'What must be measured': C_r distinct coauthors, W_r weighted degree"
+    },
+    {
+      "id": "SPARK-03",
+      "text": "Team-size metrics: average and maximum coauthors per publication, and the publications behind the maximum",
+      "source": "Evaluation rubric; 'What must be measured': A_r, M_r; 'Required final capability': publications that produced each maximum team size"
+    },
+    {
+      "id": "SPARK-04",
+      "text": "Connected components: component id and size per researcher",
+      "source": "Evaluation rubric; 'What must be measured': componentId(r), componentSize(r)"
+    },
+    {
+      "id": "SPARK-05",
+      "text": "Shortest coauthorship paths between researchers",
+      "source": "Evaluation rubric; 'What must be measured': d(u,v)"
+    },
+    {
+      "id": "SPARK-06",
+      "text": "Community detection: a documented community assignment",
+      "source": "Evaluation rubric; 'What must be measured': a documented community assignment"
+    },
+    {
+      "id": "SPARK-07",
+      "text": "At least one bridge measure (betweenness or an approximation, participation coefficient, cross-community degree, or similar)",
+      "source": "Evaluation rubric; 'What must be measured': at least one bridge measure"
+    },
+    {
+      "id": "SPARK-08",
+      "text": "k-core / coreness, or a justified equivalent",
+      "source": "Evaluation rubric: 'k-core or equivalent'"
+    },
+    {
+      "id": "SPARK-09",
+      "text": "Temporal analysis (\"All metrics must be time-aware\"). met: the metrics are computed per time period, and the periods are either one per year or come from configuration or job arguments. partial: metrics are computed per period, but the periods are fixed in code, or only some metrics are time-aware. missing: no per-period computation.",
+      "source": "Evaluation rubric; 'What must be measured': 'All metrics must be time-aware'; README lines on 'configurable windows' and 'time-window configuration'; definition set after held-out review"
+    },
+    {
+      "id": "SPARK-10",
+      "text": "Tests of the analytics. A metric counts as tested only if a test asserts a specific, hand-checked expected value for it on small fixed data (e.g. a small known graph). met: at least 5 of the 9 metric items SPARK-01..SPARK-09 are tested this way. partial: tests exist, but fewer than 5 metrics are tested this way, or the tests only check that code runs (counts above zero, non-null results). missing: no tests of the analytics.",
+      "source": "Evaluation rubric: tests; 'Required test inventory': small known-graph Spark tests; threshold (5 of 9) set after round 1, when two runs disagreed on the same facts"
+    },
+    {
+      "id": "SPARK-11",
+      "text": "Distributed execution: analytics run in Spark, not by collecting the graph into one process",
+      "source": "Evaluation rubric: distributed execution; Phase 6 work order"
+    }
+  ],
+  "deductions": [
+    {
+      "id": "SPARK-ABSENT-OR-COLLECT",
+      "max_points": 3,
+      "quote": "Spark coauthorship analytics absent or performed by collecting the graph to one process: up to 3 points lost."
+    },
+    {
+      "id": "SPARK-METRICS-MISSING",
+      "max_points": 2,
+      "quote": "Distinct coauthor count, team-size statistics, connected components, communities, bridge analysis, or k-core or justified equivalent missing: up to 2 points lost depending on scope."
+    },
+    {
+      "id": "SPARK-MUTABLE-STATE",
+      "max_points": 1,
+      "quote": "Unjustified mutable shared state in distributed or concurrent code: up to 1 point lost."
+    }
+  ],
+  "evidence": {
+    "_about": "Where the evidence pack comes from: V1 file-index keys (optionally only paths containing a word), and the phases whose evidence folders matter. Used by pack.py.",
+    "sources": [
+      {
+        "key": [
+          "spark",
+          "files"
+        ]
+      },
+      {
+        "key": [
+          "tests",
+          "files"
+        ],
+        "contains": "spark"
+      },
+      {
+        "key": [
+          "areas",
+          "evaluation"
+        ]
+      },
+      {
+        "key": [
+          "areas",
+          "docs"
+        ]
+      }
+    ],
+    "phases": [
+      6
+    ],
+    "max_files": 60
+  },
+  "v1_links": [
+    {
+      "item": "SPARK-11",
+      "if_verdict": [
+        "met"
+      ],
+      "check": "A01",
+      "if_status": [
+        "WARN"
+      ],
+      "note": "V1 A01 found .collect()-style calls in Spark code; check they only touch small summaries"
+    },
+    {
+      "item": "SPARK-10",
+      "if_verdict": [
+        "met",
+        "partial"
+      ],
+      "index_empty": {
+        "key": [
+          "tests",
+          "files"
+        ],
+        "contains": "spark"
+      },
+      "note": "V1's index lists no Spark test files"
+    }
+  ]
+}
