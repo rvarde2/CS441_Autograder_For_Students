@@ -6,6 +6,8 @@ your grade. The instructor grades by re-running the checks on a fresh clone of y
 
 V1 checks structure and process deterministically; V2 judges the content. Use both.
 
+**What exactly is judged:** [`RUBRIC.md`](RUBRIC.md): every item, deduction, threshold, and what is left to a human.
+
 ## Categories in this version
 
 | Category | Rubric points | Judged from phase | Status |
@@ -56,7 +58,7 @@ Results go to `V2/results/<repo>-<time>/`:
 | `<category>/result.json`, `run-*.json*` | reasons, citations from your code, the full trace | **no** (contains your code) |
 
 Verdicts: `met`, `partial`, `missing`, `cannot_tell` (the judge could not decide: a human looks).
-Reasons are in `result.json` (`items.<ID>.reason`). Every item text is in `judge/rubric/<category>.json`.
+Reasons are in `result.json` (`items.<ID>.reason`). Every item is explained in [`RUBRIC.md`](RUBRIC.md).
 
 `needs_human = yes` means a verdict the code could not confirm (a citation that didn't match your
 files, two runs that disagreed, low confidence, or a contradiction with V1's facts). Treat those as

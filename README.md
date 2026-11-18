@@ -6,7 +6,7 @@ ScholarChain assignment, not the assignment repository). It is not your grade.
 | Folder | Version | Status |
 |---|---|---|
 | [`V1/`](V1/) | 1.0.2 | current (what's new: [`V1/README.md`](V1/README.md#whats-new-in-102)) |
-| [`V2/`](V2/) | 2.1.0 | new: AI judge per rubric category (advisory; uses **your** Claude Code usage). Start with [`V2/README.md`](V2/README.md). Categories so far: dataset engineering, Spark analytics. |
+| [`V2/`](V2/) | 2.1.1 | new: AI judge per rubric category (advisory; uses **your** Claude Code usage). Start with [`V2/README.md`](V2/README.md); what is judged: [`V2/RUBRIC.md`](V2/RUBRIC.md). Categories so far: dataset engineering, Spark analytics. |
 
 **Start here:** [`V1/HOW_TO_RUN.md`](V1/HOW_TO_RUN.md) (step by step), then [`V1/README.md`](V1/README.md)
 (what every check means) and [`V1/DESIGN.md`](V1/DESIGN.md) (how each check decides).
