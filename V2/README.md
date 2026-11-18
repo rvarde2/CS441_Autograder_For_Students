@@ -6,13 +6,14 @@ your grade. The instructor grades by re-running the checks on a fresh clone of y
 
 V1 checks structure and process deterministically; V2 judges the content. Use both.
 
-**What exactly is judged:** [`RUBRIC.md`](RUBRIC.md): every item, deduction, threshold, and what is left to a human.
+**Step by step:** [`HOW_TO_RUN.md`](HOW_TO_RUN.md). **What exactly is judged:** [`RUBRIC.md`](RUBRIC.md): every item, deduction, threshold, and what is left to a human.
 
 ## Categories in this version
 
 | Category | Rubric points | Judged from phase | Status |
 |---|---:|---:|---|
 | `dataset_engineering` (Dataset engineering) | 1.0 | 3 | available |
+| `hadoop_mapreduce` (Hadoop MapReduce) | 2.0 | 4 | available |
 | `spark_analytics` (Spark coauthorship analytics) | 3.0 | 6 | available |
 | other categories | | | coming in later versions (`git pull`) |
 
@@ -30,7 +31,8 @@ usage for nothing. Use `--include-not-due` to judge it anyway.
 | Claude Code, logged in | `claude --version` | Version 2.1.326 or newer (`claude update`). |
 
 **It uses your own Claude usage.** One run of one category costs roughly the same as a short
-Claude Code session (measured, API-equivalent: about $0.15-0.35 for `spark_analytics`, $0.30-0.55 for `dataset_engineering`; on a
+Claude Code session (measured, API-equivalent: about $0.30-0.55 for `dataset_engineering`, $0.45-0.75 for `hadoop_mapreduce`,
+$0.15-0.35 for `spark_analytics`; on a
 subscription it counts against your plan's usage). The script shows the estimate and asks before
 starting. Each run takes 1-2 minutes.
 

@@ -1,4 +1,4 @@
-# V2 rubric (version 2.1.1)
+# V2 rubric (version 2.2.0)
 
 Generated from the rubric files in `judge/rubric/` that the AI judge uses, so this page and the judge always
 agree. Every item quotes the ScholarChain README (commit a139f4a).
@@ -23,6 +23,7 @@ V2 is advisory: it gives verdicts, not points.
 | Category | Points | Judged from phase | Items | Deductions |
 |---|---:|---:|---:|---:|
 | Dataset engineering (`dataset_engineering`) | 1.0 | 3 | 8 | 1 |
+| Hadoop MapReduce (`hadoop_mapreduce`) | 2.0 | 4 | 12 | 3 |
 | Spark coauthorship analytics (`spark_analytics`) | 3.0 | 6 | 11 | 3 |
 
 ## Dataset engineering: 1.0 points, phase 3
@@ -49,6 +50,41 @@ README full-credit evidence: *DBLP plus at least three real linked datasets, man
 - **DATA-02:** "Most fields" is read as: each dataset entry may miss at most 2 of the 15 descriptive fields; placeholders (TBD, YYYY-MM-DD, <...>) count as missing.
 - **DATA-03:** Only presence and specificity of license terms are judged here; whether a stated license is correct is checked by a human.
 - **DATASETS-FEWER-THAN-THREE:** "Actual" dataset = manifest entry + retrieval or sample script + sample file + pipeline code outside datasets/ that reads its records. Listing alone is judged in DATA-01.
+
+## Hadoop MapReduce: 2.0 points, phase 4
+
+README full-credit evidence: *Correct distributed parsing, normalization, researcher/work blocking, author-team extraction, coauthor-pair preparation, counters, rejects, tests, and EMR run*
+
+| ID | What is judged | README source |
+|---|---|---|
+| HADOOP-01 | Real MapReduce jobs. met: at least two jobs, each with a driver that configures Mapper and Reducer classes (or Hadoop Streaming with a job configuration). partial: exactly one such job. missing: no real MapReduce job. | Phase 4 gate: 'At least two real MapReduce jobs execute, not local collection operations disguised as MapReduce' |
+| HADOOP-02 | DBLP parsing. met: an XML input format or record reader that keeps each top-level DBLP record whole across input splits, and extraction of key, title, ordered authors, year, venue fields, ee links, URLs and record type into WorkRecord/AuthorMention records. partial: records parsed but the reader assumes byte splits align with records, or only some fields are extracted. | Phase 4 work order job 1; 'Detailed Hadoop requirements': must not assume arbitrary byte splits align with publication elements |
+| HADOOP-03 | External source normalization. met: one normalizer per selected dataset, mapping into shared contracts while keeping source-specific IDs, and normalizing identifiers (DOI, arXiv, ORCID, OpenAlex, Semantic Scholar, ...) with duplicate or conflict counting. partial: only some selected datasets, or source IDs lost. | Phase 4 work order jobs 2 and 3 |
+| HADOOP-04 | Bounded blocking and match candidates. met: blocking keys with a maximum block size, fallback keys, an oversize-group policy and an oversize counter, producing MatchCandidate records with deterministic match features, AND the size bound takes effect before a whole oversize group reaches a single reducer (for example a pre-pass that counts block sizes and re-keys oversize groups in the mapper, composite or salted keys, or sampling). partial: blocking without a size bound or oversize policy; or a bound applied only after one reducer has received and loaded the whole oversize group; or no MatchCandidate output. ('Simply allocating a larger reducer is not a strategy.') | Phase 4 work order jobs 4 and 5; 'Detailed Hadoop requirements' on giant reducer groups |
+| HADOOP-05 | Publication-team extraction: one team record per retained work with ordered author mentions, and author-paper records keyed by author mention and work ID. An author mention is identified by an author-mention ID or by the pair (work ID, author position); a record keyed by the author's name alone does not identify the mention. | Phase 4 work order job 6 |
+| HADOOP-06 | Coauthor-pair preparation. met: unordered pairs, n*(n-1)/2 per paper with n authors, no self-pairs, every pair keeping work ID, year, author position and source provenance, and unusually large teams counted and reported. partial: pairs produced but missing provenance fields or large-team counting. | Phase 4 work order job 6; gate: 'Pair generation passes hand-checkable papers with 1, 2, 3, and larger author lists' |
+| HADOOP-07 | Hadoop counters. met: counters for at least 6 of the 10 listed kinds (input, accepted, rejected, duplicate, conflict, oversize block, oversize author team, emitted pair, missing key, schema failure). partial: 1 to 5 of them. missing: no counters. | Phase 4 work order 'Required operational behavior' |
+| HADOOP-08 | Reject outputs. met: malformed and unsupported records written to versioned reject outputs. partial: rejects only counted or logged, or outputs not versioned, or some kinds of bad records (for example unsupported record types) are skipped instead of written to the reject outputs. | Phase 4 work order job 2; gate: 'Counters and reject outputs are visible' |
+| HADOOP-09 | Operational discipline: explicit partition strategy, idempotent output paths containing run ID and dataset snapshot, compressed intermediate outputs, deterministic outputs for deterministic inputs. Deterministic means the output does not depend on the order in which values reach a reducer or on task scheduling (for example values or pairs are sorted, a secondary sort is used, or pair IDs are put in a canonical order). met: all four. partial: some. | Phase 4 work order 'Required operational behavior' |
+| HADOOP-10 | Hadoop tests. A test counts only if it asserts specific expected values. met: tests for the parser, pair generation with 1, 2, 3 and larger author lists, normalization, and key functions, plus at least one local or mini-cluster integration test of a representative job. partial: only some of these, or tests that only check that code runs. missing: no Hadoop tests. | Phase 4 work order required tests and gate; 'Required test inventory': Hadoop mapper and reducer tests |
+| HADOOP-11 | Job contracts documented: for each job, input format, input/mapper-output/reducer key and value types, combiner and partitioner behavior, counters, reject conditions, expected reducers, S3 input and output prefixes, compression codec, idempotency rule and test fixture. met: most jobs with most of these. partial: some jobs or few fields. ('A diagram that says Hadoop processes DBLP is insufficient.') | 'Detailed Hadoop requirements': document every mapper and reducer contract |
+| HADOOP-12 | EMR run. met: a bounded EMR smoke-run script and committed evidence of an EMR run (counters, logs or a run report). partial: script only, or evidence without a script. Run evidence cannot be confirmed from the repository alone, so describe what you found. **(always confirmed by a human)** | Evaluation rubric 'EMR run'; Phase 4 work order: 'A bounded EMR smoke-run script owned by the infrastructure workflow' |
+
+| Deduction | Up to | README text |
+|---|---:|---|
+| HADOOP-REPLACED | 3 pts | Hadoop requirement replaced by a local loop, Spark operation, or managed import: up to 3 points lost. |
+| HADOOP-PAIRS-WRONG | 2 pts | Coauthor-pair preparation is missing or incorrect for large author teams: up to 2 points lost. (Judge here: applies when pairs for large teams are wrong, dropped or not produced. Missing large-team counting or reporting alone is judged in HADOOP-06, not here.) |
+| HADOOP-MUTABLE-STATE | 1 pts | Unjustified mutable shared state in distributed or concurrent code: up to 1 point lost. (Judge Hadoop code only here; Spark code is judged in its own category.) |
+
+**Our interpretations** (where the README gives no threshold; approved by the instructor):
+
+- **HADOOP-04:** The size bound must take effect BEFORE a whole oversize group reaches one reducer (for example a pre-pass that counts block sizes and re-keys oversize keys in the mapper, composite or salted keys, or sampling). A bound applied only after one reducer has received and loaded the whole group is partial ("Simply allocating a larger reducer is not a strategy").
+- **HADOOP-05:** An author mention is identified by an author-mention ID or by (work ID, author position); a record keyed by the author's name alone does not identify the mention.
+- **HADOOP-07:** Met = counters for at least 6 of the 10 kinds the README lists.
+- **HADOOP-08:** Partial also when some kinds of bad records (for example unsupported DBLP record types, or bad records in the source normalizers) are skipped or only counted instead of written to the versioned reject outputs.
+- **HADOOP-09:** "Deterministic" = the output does not depend on the order in which values reach a reducer or on task scheduling (sorted values, a secondary sort, or canonically ordered pair IDs).
+- **HADOOP-12:** Run evidence cannot be confirmed from a repository alone: this item always goes to a human.
+- **HADOOP-PAIRS-WRONG:** Applies when pairs for large teams are wrong, dropped or not produced. Missing large-team counting or reporting alone is judged in HADOOP-06, not here.
 
 ## Spark coauthorship analytics: 3.0 points, phase 6
 

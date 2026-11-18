@@ -27,7 +27,7 @@ from autograder.repo import Repo                         # noqa: E402
 
 V2_VERSION = (HERE / "VERSION").read_text().strip() if (HERE / "VERSION").exists() else "dev"
 # Measured cost per run (API-equivalent USD; on a Pro plan it counts against your usage instead).
-COST = {"spark_analytics": (0.15, 0.35), "dataset_engineering": (0.30, 0.55), "hadoop_mapreduce": (0.20, 0.50)}
+COST = {"spark_analytics": (0.15, 0.35), "dataset_engineering": (0.30, 0.55), "hadoop_mapreduce": (0.45, 0.75)}
 CSV_COLUMNS = ["student", "repo", "commit", "v2_version", "model", "prompt_version", "rubric_sha", "run_date",
                "current_phase", "category", "id", "kind", "verdict", "severity", "per_run", "needs_human",
                "human_reasons", "category_integrity_notes", "category_cost_usd"]
