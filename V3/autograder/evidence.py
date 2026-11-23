@@ -30,17 +30,51 @@ def norm(name):
 
 
 # ---------------------------------------------------------------------- evidence files
+def _phase_files(repo, phase_dir):
+    """Files in a phase folder and ONE level of subfolders (reports/, repair-01/, ...) (1.0.6)."""
+    out = [p for p in repo.glob(phase_dir, "*") if repo.is_file(p)]
+    for sub in repo.glob(phase_dir, "*"):
+        if repo.is_dir(sub):
+            out += [p for p in repo.glob(sub, "*") if repo.is_file(p)]
+    return out
+
+
+def _name_matches(stem, stems):
+    """'Agent_Report-01' matches 'agentreport' (start of the name, as before 1.0.6), and so does
+    'phase-10-agent-report' (consecutive name PARTS, 1.0.6). Parts, not substrings: 'investigate'
+    must not match 'gate'."""
+    if any(norm(stem).startswith(s) for s in stems):
+        return True
+    parts = [x for x in re.split(r"[\s\-_.]+", stem.lower()) if x]
+    joined = {"".join(parts[i:j]) for i in range(len(parts)) for j in range(i + 1, len(parts) + 1)}
+    return any(s in joined for s in stems)
+
+
+# review-report.md / test-report.md are evidence of their own (README), not the owning agent's report
+NOT_AGENT_REPORT = ("review", "codereview", "test")
+
+
+def looks_like_report(text):
+    """An agent report recognised by its CONTENT, whatever its file name (1.0.6): STATUS and OWNER plus
+    at least 7 of the 14 required fields."""
+    fields, _ = parse_report(text or "")
+    return "STATUS" in fields and "OWNER" in fields and len(fields) >= 7
+
+
 def evidence_files(repo, phase_dir, kind):
-    """All files in a phase folder that are this kind of evidence (name variants accepted)."""
+    """All files in a phase folder (or one subfolder down) that are this kind of evidence.
+    By name (variants accepted, data/evidence_formats.json), and for agent reports also by content."""
     spec = FORMATS["evidence_files"][kind]
     out = []
-    for p in repo.glob(phase_dir, "*"):
-        if not repo.is_file(p):
-            continue
+    for p in _phase_files(repo, phase_dir):
         stem, ext = (p.stem, p.suffix.lower()) if p.suffix else (p.name, "")
-        if ext in spec["exts"] and any(norm(stem).startswith(s) for s in spec["stems"]):
+        if ext not in spec["exts"]:
+            continue
+        if kind == "agent-report" and norm(stem).startswith(NOT_AGENT_REPORT):
+            continue
+        if _name_matches(stem, spec["stems"]) or (kind == "agent-report" and looks_like_report(repo.read(p))):
             out.append(p)
-    return sorted(out, key=lambda p: p.name)
+    return sorted(out, key=lambda p: (len(p.parts), str(p)))
 
 
 def evidence_text(repo, phase_dir, kind):

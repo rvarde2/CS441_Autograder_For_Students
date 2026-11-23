@@ -171,6 +171,9 @@ def control_plane(repo, out):
 
 
 # ======================================================================= O: ownership
+# Names for the main session and the human, which own records but are not subagents (1.0.6)
+NOT_SUBAGENTS = {"orchestrator", "main-session", "main-context", "human", "human-architect", "architect"}
+
 @check_group(phase=1)
 def ownership(repo, out):
     own = repo.ownership
@@ -186,14 +189,17 @@ def ownership(repo, out):
                  "agent names in another); run with --ai-ownership to read other formats"] + own["rejected"])
         return
 
-    # O01: the map exists and every writer it names has an agent file.
-    unknown = sorted({r["agent"] for r in rows if r["agent"] not in agents})
+    # O01: the map exists and every writer it names has an agent file. The orchestrator (the main session,
+    # the README's hub) and the human are not subagents, so they have no agent file (1.0.6).
+    hubs = sorted({r["agent"] for r in rows if r["agent"].lower().replace(" ", "-") in NOT_SUBAGENTS})
+    unknown = sorted({r["agent"] for r in rows if r["agent"] not in agents and r["agent"] not in hubs})
     out.add("O01", "Ownership map found and readable; every writer has an agent file",
             "FAIL" if unknown or own["rejected"] else "PASS",
             [f"source: {own['source']}",
              f"{len(rows)} writer rows, {len({r['path'] for r in rows})} artifacts, "
              f"{len({r['agent'] for r in rows})} writing agents"]
             + [f"writer '{u}' has no file in .claude/agents/" for u in unknown]
+            + ([f"writers that are not subagents (no agent file needed): {', '.join(hubs)}"] if hubs else [])
             + [f"REJECTED (citation failed): {x}" for x in own["rejected"]])
 
     # O02: one writer per artifact. Overlaps are allowed only with "documented control", which

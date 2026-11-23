@@ -55,7 +55,11 @@ RULES = [
     ("MEDIUM", "addressed to a reviewer/model/assistant", addressed(WEAK)),
     ("HIGH", "tries to set marks",
      re.compile(r"\b(?:award|give|assign|grant|mark|score|grade)\b[^.\n]{0,40}\b(?:full|maximum|max|perfect|all|top|highest)\b[^.\n]{0,20}\b(?:marks?|points?|credit|score|grade)\b"
-                r"|\b(?:full|perfect|maximum)\s+(?:marks|score|credit|points)\b|\b(?:20|10|100)\s*/\s*(?:20|10|100)\b", re.I)),
+                r"|\b(?:full|perfect|maximum)\s+(?:marks|score|credit|points)\b"
+                # a bare ratio is a mark only next to a grading word: "score this 20/20", "20/20 points".
+                # "abstention checks passed 10/10" is a measured result (V2 2.3.3, a student's false HIGH)
+                r"|\b(?:score|scored|marks?|points?|grade|graded|award|give|rate|rated)\b[^.\n]{0,25}\b(?:20|10|100)\s*/\s*(?:20|10|100)\b"
+                r"|\b(?:20|10|100)\s*/\s*(?:20|10|100)\s*(?:marks?|points?|score|grade)\b", re.I)),
     ("MEDIUM", "override phrase",
      re.compile(r"\b(?:ignore|disregard|forget|override|bypass)\b[^.\n]{0,25}\b(?:previous|prior|above|earlier|all|any|your|the)\b[^.\n]{0,20}\b(?:instructions?|rules|rubric|prompts?|guidelines|criteria)\b", re.I)),
     # Spoofing: fake role tags, or telling the reader it IS the grader. Merely mentioning a

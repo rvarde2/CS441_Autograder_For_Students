@@ -28,7 +28,11 @@ WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 
 # A commit message IDENTIFIES a phase when it STARTS with it ("phase-06 spark-engineer: ..."),
 # not when prose mentions one ("fixed description of phase 0" is not phase-00's commit).
-PHASE_MSG = re.compile(r"^\s*phase[-_ ]?(\d+)\b", re.I)
+# 1.0.6: also after a conventional-commit type or a bracket, as students write them:
+#   "phase-06 spark-engineer: ..."  "[phase-06] ..."  "feat(phase-06): ..."  "chore: phase-06 ..."  "feat(core): phase-06 ..."
+# Prose that only mentions a phase ("fix typo in phase 0 docs") still doesn't count.
+# Sub-phases ("phase-10b repair", "phase-4b2") count for their phase (two students split phases this way).
+PHASE_MSG = re.compile(r"^\s*(?:\[\s*|[a-z]+\(\s*|[a-z]+(?:\([^)]*\))?!?:\s*\[?\s*)?phase[-_ ]?(\d+)(?:[a-z]\d*)?\b", re.I)   # sub-phases count for their phase: phase-10b, phase-4b2
 # Phase evidence folder names: phase-03, phase_03, phase03, Phase-3, "phase 03"
 PHASE_DIR = re.compile(r"^phase[-_ ]?(\d+)$", re.I)
 

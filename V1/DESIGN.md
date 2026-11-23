@@ -1,6 +1,6 @@
 # CS441 ScholarChain Autograder: V1 design
 
-Version 1.0.5. How the self-check works and exactly how each check decides, for students and
+Version 1.0.6. How the self-check works and exactly how each check decides, for students and
 course staff. How to run it is in `HOW_TO_RUN.md`; what changed in each version is in `README.md`.
 It checks a student's OWN project repository (their implementation of the ScholarChain
 assignment), not the ScholarChain assignment repository.
@@ -193,10 +193,10 @@ Levels: F = FAIL when broken, W = WARN, I = INFO. "Source" quotes or names the S
 |---|---|---|---|---|
 | S01 | F | no symlink points outside the repo | safety | resolve every symlink |
 | F02 | F | every agent file has `name`, `description`, explicit `tools` | Phase 0: "Require least privilege and explicit tools fields" | parse frontmatter |
-| P01 | F/W | phase folders (`phase-03`, `phase_03`, `Phase-3`), none skipped, each with a prompt, agent report(s), human gate and commit record under any accepted name; commits labelled phase-NN without a folder = W | "Agent-generated deliverable evidence" | section 8.7 |
+| P01 | F/W | phase folders (`phase-03`, `phase_03`, `Phase-3`), none skipped, each with a prompt, agent report(s), human gate and commit record under any accepted name (a folder with none of them, or no folder, is reported neutrally: missing, skipped or combined with another phase is for a human to decide; other files left in the folder are listed); commits labelled phase-NN without a folder = W | "Agent-generated deliverable evidence" | section 8.7 |
 | G01 | F | git repository with history | Git logistics | `git log` |
-| G02 | F | each commit.txt names a commit that exists | evidence | `git cat-file -e` |
-| G03 | F | each phase has a commit whose message **starts** `phase-NN` | "commit messages that identify the phase" | message prefix (prose mentions don't count) |
+| G02 | F | each commit.txt names a commit that exists (a digits-only token, e.g. a run ID, counts only if it is a commit) | evidence | `git cat-file -e` |
+| G03 | F | each phase has a commit whose message starts with `phase-NN`, also after a type or bracket (`feat(phase-06):`, `[phase-06]`, `chore: phase-06`); sub-phases (`phase-10b`) count for their phase | "commit messages that identify the phase" | message prefix (prose mentions don't count) |
 | K01 | F/W | no keys/tokens in current tracked files (AWS, GitHub, Anthropic, OpenAI, Slack, private keys); placeholders ignored; a realistic value in a test/fixture file or `docs/agent-runs/` is W; `password='...'` is W | "Secrets committed: up to 4 points lost" | section 8.4; values never printed |
 | K02 | F/W | none in any commit on any branch (same placeholder and test-file rules as K01) | same | every added line in `git log -p --all` |
 | K03 | F/W | no `.env`, `.tfstate` or key files tracked (F); a `.tfvars` file is W (check it holds no secrets) | Git logistics: "Terraform state containing sensitive values" | tracked file names |
@@ -204,12 +204,12 @@ Levels: F = FAIL when broken, W = WARN, I = INFO. "Source" quotes or names the S
 | E02 | F | OWNER is an existing agent | ownership | agent files |
 | E03 | F | every file in FILES CREATED/MODIFIED was changed by one of the phase's commits (a partial path from a file tree is matched to the one real path ending with it) | "Agent reports claim commands or tests that were not actually run" | section 8.1 |
 | E04 | W | files the phase changed but the report doesn't list | manual edits "must be disclosed" | section 8.1 |
-| E05 | W | files changed in the phase are owned by OWNER | one writer per artifact | ownership patterns |
+| E05 | W | files changed in the phase are owned by OWNER (`.gitkeep` placeholders and files owned by a test agent are not counted: the README's phase sequence invokes test agents inside a phase) | one writer per artifact | ownership patterns |
 | E06 | F/W | the gate (`human-gate*` first; other `gate*` files only if there is none) names the same commit as commit.txt (other commits but not that one = W; no hash but commit.txt valid = W; neither names a commit = F) and states a decision (accept/approve/ratify/reject/decline; none = W) | human-gate contents | hash cross-check |
 | E07 | I | commits per phase, repair records, late fixes | — | — |
 | C01 | W | files ≥ 80% copied from the tutorial | — | section 8.2 |
 | C02 | F | > 50% of control-plane files copied | "tutorial fork with TaskForge renamed: zero" | section 8.2 |
-| C03 | F/W | "TaskForge" left in control plane or code (F) / other docs (W) | same | text search |
+| C03 | F/W | "TaskForge" left in control plane or code (F) / other docs (W); a script line that searches for or blocks the name (`grep`, `=~`, deny, reject, leftover) is listed, not counted | same | text search |
 
 ### Phase 1 (the agent control plane)
 
@@ -221,7 +221,7 @@ Levels: F = FAIL when broken, W = WARN, I = INFO. "Source" quotes or names the S
 | F05 | F/W | hooks referenced in settings exist, are executable (unless run via an interpreter), shell hooks pass `bash -n` (parse only); `"$CLAUDE_PROJECT_DIR"/…`, `"$CLAUDE_PROJECT_DIR/…"`, `${CLAUDE_PROJECT_DIR}/…`, `bash x.sh`, `python3 x.py` understood | "shell syntax checks, executable-bit checks" |
 | F06 | F | deny rules: `.env` reads, terraform apply/destroy, force push, a destructive AWS command; hooks: PreToolUse(Bash) guard, Stop, PostToolUse(Edit/Write) | Phase 0 floor invariants |
 | F07 | F | secret-looking `.mcp.json` env/headers use `${VAR}`, optionally after an auth scheme (`Bearer ${VAR}`) | ".mcp.json with secret values omitted" |
-| O01 | F/W | every writer named in the ownership map has an agent file (F); AI citations verified; a table the parser can't read = W (suggests `--ai-ownership`); owners may be **bold** or plain agent names; tables about who runs, reviews or decides are not ownership | authority matrix |
+| O01 | F/W | every writer named in the ownership map has an agent file (F); AI citations verified; a table the parser can't read = W (suggests `--ai-ownership`); owners may be **bold** or plain agent names; tables about who runs, reviews or decides are not ownership; the orchestrator (main session) and the human need no agent file | authority matrix |
 | O02 | W | artifacts with >1 writer, or a path inside another's (needs "documented control") | "overlapping write ownership without documented control" |
 | O03 | W | agents said to write files have Write/Edit | ownership vs tool fence |
 | O04 | I | agents that write nothing | — |
@@ -361,7 +361,10 @@ Students and their agents write the same evidence differently, and V1 must not F
 
 - **Folders**: `phase-03`, `phase_03`, `phase03`, `Phase-3`.
 - **File names**: compared after lowercasing and removing spaces, `-`, `_`: `agent-report.md`,
-  `agent-report-01.md`, `Agent_Report_2.md`, `final-report.md`; `human-gate*`, `gate*` (for E06, `human-gate*`
+  `agent-report-01.md`, `Agent_Report_2.md`, `final-report.md`, `phase-10-agent-report.md` (name parts);
+  the phase folder and one subfolder are searched (`reports/`, `repair-01/`). An agent report is also
+  recognised by its CONTENT: STATUS, OWNER and at least 7 of the 14 fields, whatever its name
+  (review and test reports excluded by name); `human-gate*`, `gate*` (for E06, `human-gate*`
   files are read first; other `gate*` files only if there is none);
   `commit.txt`, `commit-hash.txt`. All of a phase's reports are read together.
 - **Field labels**: `FILES CREATED:`, `**Files created:**`, `## Files Created`, a table row

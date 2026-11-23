@@ -5,9 +5,9 @@ ScholarChain assignment, not the assignment repository). It is not your grade.
 
 | Folder | Version | Status |
 |---|---|---|
-| [`V1/`](V1/) | 1.0.5 | current (what's new: [`V1/README.md`](V1/README.md#whats-new-in-105): every check applies at every phase; 1.0.4: fewer false FAILs, from your feedback) |
-| [`V2/`](V2/) | 2.3.2 | (2.3.2: every category is judged at every phase; includes V1 1.0.5; judge unchanged). AI judge per rubric category (advisory; uses **your** Claude Code usage). Start with [`V2/HOW_TO_RUN.md`](V2/HOW_TO_RUN.md), then [`V2/README.md`](V2/README.md); what is judged: [`V2/RUBRIC.md`](V2/RUBRIC.md). Categories so far: dataset engineering, Hadoop MapReduce, Spark analytics. |
-| [`V3/`](V3/) | 3.0.2 | experimental (3.0.2: includes V1 1.0.5; judge unchanged): AI judge for the agentic factory (3.0 pts; advisory; uses your Claude or Antigravity usage). See [`V3/README.md`](V3/README.md) and [`V3/RUBRIC.md`](V3/RUBRIC.md). |
+| [`V1/`](V1/) | 1.0.6 | current (what's new: [`V1/README.md`](V1/README.md#whats-new-in-106): more fixes from your notes; 1.0.5: every check applies at every phase; 1.0.4: fewer false FAILs) |
+| [`V2/`](V2/) | 2.3.3 | (2.3.3: includes V1 1.0.6, pre-scan no longer flags "passed 10/10"; 2.3.2: every category is judged at every phase; judge unchanged). AI judge per rubric category (advisory; uses **your** Claude Code usage). Start with [`V2/HOW_TO_RUN.md`](V2/HOW_TO_RUN.md), then [`V2/README.md`](V2/README.md); what is judged: [`V2/RUBRIC.md`](V2/RUBRIC.md). Categories so far: dataset engineering, Hadoop MapReduce, Spark analytics. |
+| [`V3/`](V3/) | 3.0.3 | experimental (3.0.3: includes V1 1.0.6 and the pre-scan fix; judge unchanged): AI judge for the agentic factory (3.0 pts; advisory; uses your Claude or Antigravity usage). See [`V3/README.md`](V3/README.md) and [`V3/RUBRIC.md`](V3/RUBRIC.md). |
 
 ## What each version does
 

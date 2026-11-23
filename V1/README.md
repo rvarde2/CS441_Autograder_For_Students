@@ -28,6 +28,22 @@ Results are printed and saved in `./selfcheck-results/` (always outside your rep
 - `selfcheck-results.json`: the same results plus an index of where your files are, for tools.
   **Keep it on your computer; don't send it.** Only the CSV is ever shared.
 
+## What's new in 1.0.6
+
+From more of your notes (thank you):
+
+- **P01:** an agent report is found under any name containing its parts (`phase-10-agent-report.md`), in a
+  subfolder (`reports/`, `repair-01/`), or by its content (STATUS, OWNER and most of the 14 fields).
+- **P01/G03, combined or skipped phases:** a phase with no evidence of its own is still a FAIL (the assignment
+  asks for a folder per phase), but the message no longer assumes the work wasn't done: if you combined
+  phases, a human checks the other phase's record. Leave a short note in the empty folder; it is pointed out.
+- **G02:** numbers next to the hash in `commit.txt` (run IDs, dates) are no longer read as missing commits.
+- **G03:** `feat(phase-03): ...`, `[phase-03] ...`, `chore: phase-03 ...` and sub-phases (`phase-10b`) are recognised.
+- **O01:** `orchestrator` (the main session) and the human need no agent file.
+- **C03:** a hook that searches for or blocks "TaskForge" leftovers no longer counts as a leftover.
+- **E05:** `.gitkeep` placeholders and test-agent files inside another agent's phase are no longer reported.
+- **V2/V3 pre-scan:** a result like "checks passed 10/10" is no longer flagged as an attempt to set marks.
+
 ## What's new in 1.0.5
 
 - **Every check applies, whatever phase you have reached.** There is no `later` any more: a check for

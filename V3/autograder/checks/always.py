@@ -73,11 +73,22 @@ def phase_evidence(repo, out):
             out.record("phases", d.name, INDEX_KEY[k], value=[repo.rel(p) for p in ev.evidence_files(repo, d, k)])
         out.record("phases", d.name, "number", value=repo.phase_number(d))
         missing = [k for k in EVIDENCE_KINDS if not ev.evidence_files(repo, d, k)]
-        if missing:
-            msg = f"{repo.rel(d)}/: missing {', '.join(missing)} (name variants are accepted, e.g. agent-report-01.md, Human_Gate.md)"
-            fail.append(msg)
+        if len(missing) == len(EVIDENCE_KINDS):
+            # No evidence of its own. It may be missing, skipped, or recorded together with another phase:
+            # the checker can't tell which (wording varies too much to detect), so it says so (1.0.6).
+            # Other files left in the folder (a note?) are pointed out for the human: a fact, not a reading.
+            found = {p for k in EVIDENCE_KINDS for p in ev.evidence_files(repo, d, k)}
+            tracked = set(repo.tracked)
+            others = [r for p in ev._phase_files(repo, d) if p not in found and (r := repo.rel(p)) in tracked]
+            fail.append(f"{repo.rel(d)}/ has no evidence of its own (prompt, agent report, human gate, commit record); "
+                        f"if this phase was combined with another one, a human checks that phase's record"
+                        + (f"; the folder holds {len(others)} other file(s), a human should read them: "
+                           f"{', '.join(others[:3])}" + (" ..." if len(others) > 3 else "") if others else ""))
+        elif missing:
+            fail.append(f"{repo.rel(d)}/: missing {', '.join(missing)} (name variants are accepted, e.g. agent-report-01.md, Human_Gate.md)")
     nums = sorted({repo.phase_number(d) for d in repo.phases})
-    fail += [f"phase-{n:02d} is missing between others" for n in range(nums[0], nums[-1] + 1) if n not in nums]
+    fail += [f"phase-{n:02d} has no folder in docs/agent-runs (missing, skipped, or combined with another phase: "
+             f"a human checks)" for n in range(nums[0], nums[-1] + 1) if n not in nums]
     # commits labelled phase-NN for a phase that has no evidence folder (e.g. phase-00 work, no phase-00/)
     labelled = {int(m.group(1)) for s_ in repo.subjects if (m := PHASE_MSG.match(s_.split(" ", 1)[-1]))}
     warn += [f"commits are labelled phase-{n:02d}, but docs/agent-runs has no folder for it" for n in sorted(labelled - set(nums))]
@@ -101,7 +112,10 @@ def git_history(repo, out):
     for d in repo.phases:
         if not ev.evidence_files(repo, d, "commit.txt"):
             continue                      # P01 already reports the missing file
-        hashes = ev.hashes_in(ev.evidence_text(repo, d, "commit.txt"))
+        # A digits-only token is a hash only if it IS a commit: digits are valid hex, so run IDs, dates and
+        # counts ("run id 000011112222") were reported as missing commits (1.0.6).
+        hashes = [h for h in ev.hashes_in(ev.evidence_text(repo, d, "commit.txt"))
+                  if not h.isdigit() or repo.resolve_commit(h)]
         if not hashes:
             g2.append(f"{repo.rel(d)}/commit.txt: no commit hash in it")
         for h in hashes:
@@ -118,7 +132,8 @@ def git_history(repo, out):
         return int(m.group(1)) if m else None
 
     named = [s for s in subjects if msg_phase(s) is not None]
-    no_commit = [f"{d.name}: no commit message mentions it" for d in repo.phases
+    no_commit = [f"{d.name}: no commit message names it (if it was combined with another phase, a human checks "
+                 f"that phase's commits)" for d in repo.phases
                  if (n := repo.phase_number(d)) is not None and not any(msg_phase(s) == n for s in subjects)]
     out.add("G03", "Commit messages identify the phase (e.g. 'phase-06 spark-engineer: ...')",
             "FAIL" if no_commit or (repo.phases and not named) else ("PASS" if repo.phases else "INFO"),
@@ -248,6 +263,7 @@ def secrets(repo, out):
 #   every commit whose message starts "phase-NN"  +  the commit(s) named in phase-NN/commit.txt.
 # Several commits per phase, labelled repairs, and small late fixes committed after a later phase
 # are all allowed (E07 reports them; nothing fails because of order).
+PLACEHOLDER_FILES = {".gitkeep", ".keep", ".gitkeep.md"}
 REPORT_FIELDS = list(ev.FORMATS["report_fields"])   # README: "Required agent report fields" (14)
 # Recognising fields in a style we don't know: with fewer than this many fields recognised, missing
 # fields are a WARN ("format not recognised?"), not a FAIL.
@@ -355,7 +371,13 @@ def reports_vs_git(repo, out):
         # ---- E05: one writer in practice: changed files belong to an OWNER per the ownership map
         if owners and all(o in agents for o in owners) and matchers:
             for t in sorted(touched):
+                # Not one-writer breaks (1.0.6): empty placeholders that keep a folder in git, and files of a test
+                # agent (the README's phase sequence, step 6, invokes test agents inside the owning agent's phase).
+                if t.rsplit("/", 1)[-1] in PLACEHOLDER_FILES:
+                    continue
                 own = {a for rx, a in matchers if rx.match(t)}
+                if own and all("test" in a for a in own):
+                    continue
                 if own and not own & set(owners):
                     e5.append(f"{tag}: {owner} changed {t}, owned by {', '.join(sorted(own))}")
 
@@ -413,6 +435,11 @@ MOSTLY = 0.50       # the control plane is "mostly copied" if > 50% of its files
 DATA = Path(__file__).resolve().parent.parent / "data"
 
 
+SCRIPT_EXT = (".sh", ".bash", ".py")
+ENFORCING = re.compile(r"\b(?:grep|egrep|rg|ag|findstr)\b|=~|re\.(?:search|match|compile)|\b(?:deny|denied|forbid|"
+                       r"forbidden|reject|block|blocked|leftovers?|must not)\b", re.I)
+
+
 def is_control(path):
     """The agent control plane: what Phase 0-1 must write for ScholarChain."""
     return path in ("CLAUDE.md", "docs/agents.md", ".mcp.json") or path.startswith(".claude/")
@@ -462,15 +489,19 @@ def copy_detection(repo, out):
              f"({ratio:.0%}; FAIL above {MOSTLY:.0%})"])
 
     # C03: TaskForge left in the control plane or code is a FAIL; in other docs (a README credit) a WARN.
-    leftover = {}
+    # A line that SEARCHES for or BLOCKS the name ("grep -qi taskforge ... leftover") enforces the rule; it is
+    # listed separately and never fails (1.0.6: a student's validate-agent-files.sh FAILed C03 for this).
+    leftover, enforcing = {}, {}
     for t in repo.tracked:
         if not (is_control(t) or t.endswith((".scala", ".sbt", ".sh", ".tf", ".md", ".json", ".yml", ".yaml", ".conf"))):
             continue
-        text = repo.read(t)
-        if text and (n := len(re.findall(r"task\s*forge", text, re.I))):
-            leftover[t] = n
+        for line in (repo.read(t) or "").splitlines():
+            if (n := len(re.findall(r"task\s*forge", line, re.I))):
+                book = enforcing if t.endswith(SCRIPT_EXT) and ENFORCING.search(line) else leftover   # scripts only: prose isn't enforcement
+                book[t] = book.get(t, 0) + n
     bad = {t for t in leftover if is_control(t) or t.endswith((".scala", ".sbt", ".sh", ".tf"))}
     out.add("C03", "No TaskForge leftovers in the control plane or code (README attribution is fine)",
             "FAIL" if bad else ("WARN" if leftover else "PASS"),
             [f"{t}: {n} mention(s) of TaskForge" for t, n in sorted(leftover.items(), key=lambda kv: -kv[1])][:15]
-            + ([f"... and {len(leftover) - 15} more files"] if len(leftover) > 15 else []))
+            + ([f"... and {len(leftover) - 15} more files"] if len(leftover) > 15 else [])
+            + ([f"not counted, they check for or block the name: {', '.join(sorted(enforcing))}"] if enforcing else []))
