@@ -1,6 +1,6 @@
 # CS441 ScholarChain Autograder: V1 design
 
-Version 1.0.6. How the self-check works and exactly how each check decides, for students and
+Version 1.0.7. How the self-check works and exactly how each check decides, for students and
 course staff. How to run it is in `HOW_TO_RUN.md`; what changed in each version is in `README.md`.
 It checks a student's OWN project repository (their implementation of the ScholarChain
 assignment), not the ScholarChain assignment repository.
@@ -200,9 +200,9 @@ Levels: F = FAIL when broken, W = WARN, I = INFO. "Source" quotes or names the S
 | K01 | F/W | no keys/tokens in current tracked files (AWS, GitHub, Anthropic, OpenAI, Slack, private keys); placeholders ignored; a realistic value in a test/fixture file or `docs/agent-runs/` is W; `password='...'` is W | "Secrets committed: up to 4 points lost" | section 8.4; values never printed |
 | K02 | F/W | none in any commit on any branch (same placeholder and test-file rules as K01) | same | every added line in `git log -p --all` |
 | K03 | F/W | no `.env`, `.tfstate` or key files tracked (F); a `.tfvars` file is W (check it holds no secrets) | Git logistics: "Terraform state containing sensitive values" | tracked file names |
-| E01 | F/W | the phase's report(s) have all 14 required fields; STATUS ∈ COMPLETE/BLOCKED-ON/FAILED. F when most labels are recognised but some are missing, or the report is essentially empty; W when few labels are recognised (probably an unknown style) | "Required agent report fields" | section 8.7 |
+| E01 | F/W | the phase's report(s) have all 14 required fields; STATUS ∈ COMPLETE/BLOCKED-ON/FAILED (any STATUS line; a table's header row is never a field). F when most labels are recognised but some are missing, or the report is essentially empty; W when few labels are recognised (probably an unknown style) | "Required agent report fields" | section 8.7 |
 | E02 | F | OWNER is an existing agent | ownership | agent files |
-| E03 | F | every file in FILES CREATED/MODIFIED was changed by one of the phase's commits (a partial path from a file tree is matched to the one real path ending with it) | "Agent reports claim commands or tests that were not actually run" | section 8.1 |
+| E03 | F/W | every file in FILES CREATED/MODIFIED was changed by one of the phase's commits (a partial path from a file tree is matched to the one real path ending with it). F: no commit supports the claim; W: changed only by another phase's commits, or gitignored and never committed | "Agent reports claim commands or tests that were not actually run" | section 8.1 |
 | E04 | W | files the phase changed but the report doesn't list | manual edits "must be disclosed" | section 8.1 |
 | E05 | W | files changed in the phase are owned by OWNER (`.gitkeep` placeholders and files owned by a test agent are not counted: the README's phase sequence invokes test agents inside a phase) | one writer per artifact | ownership patterns |
 | E06 | F/W | the gate (`human-gate*` first; other `gate*` files only if there is none) names the same commit as commit.txt (other commits but not that one = W; no hash but commit.txt valid = W; neither names a commit = F) and states a decision (accept/approve/ratify/reject/decline; none = W) | human-gate contents | hash cross-check |
@@ -284,14 +284,19 @@ or a `collect()` is harmful, is for a human or the AI step. Comment lines never 
 ### 8.1 A phase = the set of its commits (E-checks)
 
 Phases are not one commit each in practice. A phase's commits are:
-**every commit whose message starts with `phase-NN`** + **the commit(s) in `phase-NN/commit.txt`**,
-wherever they are in history. So these are all fine: several commits per phase, a labelled repair
-commit, a small fix to a phase-01 file committed after phase-02 (E07 reports it as information).
+**every commit whose message starts with `phase-NN`** + **the commit(s) in `phase-NN/commit.txt`** +
+(1.0.7) **every commit after the previous phase's accepted commit, up to this phase's accepted
+commit** (git ancestry, from the commit.txt files; not for the first recorded phase, whose earlier
+history is setup). So these are all fine: several commits per phase, unlabelled work commits ("wip",
+"fix tests") before the recorded one, a labelled repair commit, a small fix to a phase-01 file committed
+after phase-02 (E07 reports it as information). A phase without a commit record has its work counted
+with the next recorded phase.
 
-From that set: `touched` = all files those commits changed, minus `docs/agent-runs/**` (evidence,
-not work). Then:
-- E03: each claimed path must be in `touched` (a claimed folder covers files under it). If it was
-  changed by a different phase, the message says which.
+From that set: `touched` = all files those commits changed; for E04/E05 minus `docs/agent-runs/**`
+(evidence, not work). Then:
+- E03: each claimed path must be in `touched`, evidence included (a claimed folder covers files under
+  it). FAIL when no commit supports it; WARN when another phase's commits changed it (the work exists:
+  which phase it belongs to is for a human) or when it is gitignored and was never committed.
 - E04: each touched file should be claimed.
 - E05: each touched file should match an ownership pattern of OWNER (if it matches any pattern).
 

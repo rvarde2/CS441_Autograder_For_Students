@@ -1,4 +1,4 @@
-# V2 rubric (version 2.3.3)
+# V2 rubric (version 2.3.4)
 
 Generated from the rubric files in `judge/rubric/` that the AI judge uses, so this page and the judge always
 agree. Every item quotes the ScholarChain README (commit a139f4a).

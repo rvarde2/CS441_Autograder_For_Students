@@ -28,6 +28,16 @@ Results are printed and saved in `./selfcheck-results/` (always outside your rep
 - `selfcheck-results.json`: the same results plus an index of where your files are, for tools.
   **Keep it on your computer; don't send it.** Only the CSV is ever shared.
 
+## What's new in 1.0.7
+
+- **E03/E04, a phase's commits:** work committed as "wip" or "fix tests" between two gates now belongs to
+  the phase: everything after the previous phase's accepted commit (its `commit.txt`) up to this phase's.
+- **E03 is a FAIL only when no commit supports a claim.** A file changed by another phase's commits, or a
+  gitignored local file that was never committed, is a **warn** (a human checks the phase record). A claimed
+  evidence file under `docs/agent-runs/` is compared like any other (it always failed before).
+- **E01:** a legend table (`| Status | Meaning |`) or a note like `Status: copied from the agent` before the
+  real `STATUS:` line no longer hides it.
+
 ## What's new in 1.0.6
 
 From more of your notes (thank you):

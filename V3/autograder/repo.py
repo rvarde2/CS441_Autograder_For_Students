@@ -153,6 +153,10 @@ class Repo:
         """Git repositories one or two folders below root (for 'point me at your repo')."""
         return sorted({p.parent for p in list(self.root.glob("*/.git")) + list(self.root.glob("*/*/.git"))})
 
+    def is_ignored(self, path):
+        """True if the repo's .gitignore excludes path (git check-ignore: pattern matching only, runs nothing)."""
+        return self.git("check-ignore", "-q", "--", path) is not None
+
     def resolve_commit(self, h):
         """Full hash if h names a commit in this repo, else None."""
         out = self.git("rev-parse", "--verify", "--quiet", f"{h}^{{commit}}")

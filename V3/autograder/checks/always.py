@@ -299,17 +299,35 @@ def reports_vs_git(repo, out):
             files_of[h] = set((repo.git("show", "--name-only", "--format=", "--no-renames", h) or "").split())
         return files_of[h]
 
+    # 1.0.7: a phase's work also includes the commits BETWEEN the previous phase's accepted commit and this
+    # phase's accepted commit (commit.txt), by git ancestry. Students commit work as "wip", "fix tests", ...
+    # and record only the final commit; counting labelled commits alone made real work look unclaimed (E03)
+    # and unreported (E04). Independent of wording: it uses only commit.txt and the history.
+    listed_of = {repo.phase_number(d): [c for x in ev.hashes_in(ev.evidence_text(repo, d, "commit.txt"))
+                                        if (c := repo.resolve_commit(x))]
+                 for d in repo.phases if repo.phase_number(d) is not None}
+    tip = {k: max(v, key=lambda h: order.get(h, -1)) for k, v in listed_of.items() if v}
+    # The FIRST recorded phase gets no range: everything before it is setup history (a template's initial
+    # commit, a copied tutorial), not that phase's work.
+    between, prev = {}, None
+    for k in sorted(tip):
+        if prev is not None:
+            between[k] = set((repo.git("rev-list", tip[k], f"^{tip[prev]}") or "").split())
+        prev = k
+    phase_set = {k: phase_commits.get(k, set()) | set(listed_of.get(k, [])) | between.get(k, set()) for k in listed_of}
+    files_by_phase = {k: set().union(*(changed(h) for h in hs)) if hs else set() for k, hs in phase_set.items()}
+
     e1, e2, e3, e4, e5, e6, e7 = ([] for _ in range(7))
-    e1w, e6w, style_seen = [], [], Counter()        # WARN-level findings; report label styles seen
+    e1w, e3w, e6w, style_seen = [], [], [], Counter()   # WARN-level findings; report label styles seen
     for d in repo.phases:
         n = repo.phase_number(d)
         if n is None:
             continue
         tag = d.name
-        listed = [c for x in ev.hashes_in(ev.evidence_text(repo, d, "commit.txt")) if (c := repo.resolve_commit(x))]
-        commits = phase_commits.get(n, set()) | set(listed)
-        touched = set().union(*(changed(h) for h in commits)) if commits else set()
-        touched = {f for f in touched if not f.startswith("docs/agent-runs/")}   # evidence isn't "work"
+        listed = listed_of.get(n, [])
+        commits = phase_set.get(n, set())
+        touched_all = files_by_phase.get(n, set())
+        touched = {f for f in touched_all if not f.startswith("docs/agent-runs/")}   # evidence isn't "work" (E04/E05)
         out.record("phases", d.name, "commits", value=sorted(commits, key=lambda h: order.get(h, 0)))
         out.record("phases", d.name, "files_changed", value=sorted(touched))
 
@@ -331,8 +349,9 @@ def reports_vs_git(repo, out):
             else:
                 e1w.append(msg + f" (only {len(found)} of {len(REPORT_FIELDS)} labels recognised: the report may "
                                  f"use a style the checker doesn't know; use the README's field names, e.g. 'FILES CREATED:')")
+        # 1.0.7: valid if ANY STATUS line is valid (a provenance line "Status: copied from the agent" came first)
         status = ev.first_value(rep.get("STATUS"))
-        if "STATUS" in rep and not ev.status_ok(status):
+        if "STATUS" in rep and not any(ev.status_ok(ev.first_value(line)) for line in rep["STATUS"].splitlines() if line.strip()):
             e1.append(f"{tag}: STATUS is {status[:30]!r}, not COMPLETE | BLOCKED-ON | FAILED")
 
         # ---- E02: OWNER is a real agent. A phase can have several owners: Phase 3 is "the
@@ -354,12 +373,23 @@ def reports_vs_git(repo, out):
         def covered(t, c):        # a claimed folder covers the files under it
             return t == c or t.startswith(c.rstrip("/") + "/")
 
+        # Claims are compared with EVERYTHING the phase changed, evidence included (1.0.7: a claimed
+        # docs/agent-runs/ file always failed, because evidence was left out of "what the phase changed").
+        # FAIL only when no commit supports the claim. A file changed by ANOTHER phase's commits, or a
+        # gitignored file that was never committed, is a WARN: the work exists; its record is for a human.
         for c in sorted(set(claimed)):
-            if not any(covered(t, c) for t in touched):
-                elsewhere = sorted({f"phase-{k:02d}" for k, hs in phase_commits.items() for h in hs if c in changed(h)})
+            if any(covered(t, c) for t in touched_all):
+                continue
+            elsewhere = sorted(f"phase-{k:02d}" for k, fs in files_by_phase.items()
+                               if k != n and any(covered(t, c) for t in fs))
+            if elsewhere:
+                e3w.append(f"{tag}: report claims {c}; it was changed by {', '.join(elsewhere)} commits, not {tag}'s "
+                           f"(a human checks which phase did the work)")
+            elif c not in repo.history_paths and repo.is_ignored(c):
+                e3w.append(f"{tag}: report claims {c}, which was never committed (.gitignore excludes it)")
+            else:
                 e3.append(f"{tag}: report claims {c}, but no {tag} commit changed it"
-                          + (f" (changed in {', '.join(elsewhere)})" if elsewhere else
-                             "" if c in repo.history_paths else " (this path never existed in the repo)")
+                          + ("" if c in repo.history_paths else " (this path never existed in the repo)")
                           + ("" if commits else "  [this phase has no commits]"))
 
         # ---- E04: changed but not reported (manual edits must be disclosed in human-gate.md)
@@ -411,7 +441,8 @@ def reports_vs_git(repo, out):
     out.add("E01", "Agent reports have every required field and a valid STATUS",
             "FAIL" if e1 else ("WARN" if e1w else "PASS"), e1 + e1w)
     out.add("E02", "Each report's OWNER is an existing agent", "FAIL" if e2 else "PASS", e2)
-    out.add("E03", "Files a report claims were really changed by that phase's commits", "FAIL" if e3 else "PASS", e3)
+    out.add("E03", "Files a report claims were really changed by that phase's commits",
+            "FAIL" if e3 else ("WARN" if e3w else "PASS"), e3 + e3w)
     out.add("E04", "Files the phase changed but its report doesn't list (undisclosed manual edits?)",
             "WARN" if e4 else "PASS", e4)
     out.add("E05", "Files changed in a phase belong to its OWNER (one writer, in practice)",

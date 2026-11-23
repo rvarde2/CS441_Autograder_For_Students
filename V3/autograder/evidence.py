@@ -120,7 +120,8 @@ def parse_report(text):
         fields[field] = (fields.get(field, "") + "\n" + value).strip("\n") if field in fields else value
         styles[style] = styles.get(style, 0) + 1
 
-    for line in text.splitlines():
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
         if (h := _HEADING.match(line)):
             field = _label(h.group(1))
             if field:
@@ -128,7 +129,10 @@ def parse_report(text):
             else:
                 cur = None                      # an unrelated heading ends the current section
             continue
-        if line.lstrip().startswith("|"):
+        # a table's HEADER row (the next line is |---|) is never a field: "| Status | Meaning |" is a legend
+        # (1.0.7: it was read as STATUS = "Meaning")
+        header = i + 1 < len(lines) and re.fullmatch(r"\s*\|?[\s|:\-]+\|?\s*", lines[i + 1] or "x") and "-" in lines[i + 1]
+        if line.lstrip().startswith("|") and not header:
             cells = [c.strip() for c in line.strip().strip("|").split("|")]
             if len(cells) >= 2 and (field := _label(cells[0])):
                 start(field, " | ".join(cells[1:]), "table")
