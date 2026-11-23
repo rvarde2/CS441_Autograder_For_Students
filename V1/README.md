@@ -28,6 +28,38 @@ Results are printed and saved in `./selfcheck-results/` (always outside your rep
 - `selfcheck-results.json`: the same results plus an index of where your files are, for tools.
   **Keep it on your computer; don't send it.** Only the CSV is ever shared.
 
+## What's new in 1.0.4
+
+After the first round of student feedback (thank you, especially for the notes on why a result was wrong).
+Fewer false FAILs; nothing that was really wrong is accepted now.
+
+- **F05 (hooks):** hooks written with the whole path in quotes, `"$CLAUDE_PROJECT_DIR/.claude/hooks/x.sh"`,
+  are found (they were reported as missing, with a stray `"` at the end of the path).
+- **F07 (.mcp.json):** `"Authorization": "Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}"` counts as an environment-variable
+  reference (GitHub's server needs the `Bearer ` prefix). A literal value still FAILs.
+- **K01/K02 (secrets):** placeholder values are no longer findings: AWS's documentation example key
+  (`AKIAIOSFODNN7EXAMPLE`), values containing EXAMPLE/FAKE/TEST/DUMMY, sequences like `ABCDEFGHIJ`, and a
+  `BEGIN PRIVATE KEY` header with no key after it (they are counted in one line). A realistic-looking value in a
+  test or fixture file or in `docs/agent-runs/` is a **warn** ("confirm it's not a real key"); anywhere else it
+  is still a FAIL.
+- **E01 (report fields):** labels with a note in brackets (`FILES CREATED (all under modules/):`) and an
+  ALL-CAPS label alone on its line (`FILES MODIFIED`) are recognised.
+- **E03 (claimed files):** files listed as an indented tree (`modules/` then `  storage/README.md`) are matched
+  to the real path, instead of "this path never existed".
+- **E06 (human gate):** `human-gate.md` is read first; other `gate*` files (e.g. `gate-summary.md`) only when there
+  is no human gate. A gate that mentions other commits but not the one in `commit.txt` is now a **warn** (it was a
+  FAIL): please still write the accepted hash in the gate, as the assignment asks.
+- **R03 (guard):** deny patterns written as regular expressions (`\baws\b\s+emr\s+terminate`) are read correctly.
+- **R07 (MCP servers):** AWS's managed MCP server (`aws-mcp`) counts as the AWS API server.
+- **O02/O03 (ownership):** other tables in `docs/agents.md` (escalation, "run by", review gates) and **bold**
+  situation names are no longer read as owners.
+- **V01 (hard-coded values):** public dataset buckets (`s3://openalex`, `s3://arxiv`), ARNs built from parts, and
+  placeholder account IDs (`000000000000`) are no longer flagged.
+- **Tip:** only committed files are checked. Commit your work before running, or the results describe your last
+  commit, not your working folder.
+
+If you ran 1.0.3: `git pull` and run again.
+
 ## What's new in 1.0.3
 
 - **T01 (25 meaningful tests) now counts JUnit tests.** Java (or Scala) tests written with `@Test`,
@@ -200,4 +232,4 @@ and the file names/lines each problem was found at, not your files' contents.
 | X04 | Observation: tutorial similarity of each control-plane file (to tune C01/C02 cut-offs) | observation |
 | X05 | Observation: test counts (to tune T01) | observation |
 | X06 | Observation: folder layout (folders to depth 2, tracked file counts) | observation |
-| X07 | Observation: report label styles recognised (colon, bold, heading, table) | observation |
+| X07 | Observation: report label styles recognised (colon, bold, heading, table, bare label) | observation |

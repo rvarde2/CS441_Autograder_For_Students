@@ -5,9 +5,9 @@ ScholarChain assignment, not the assignment repository). It is not your grade.
 
 | Folder | Version | Status |
 |---|---|---|
-| [`V1/`](V1/) | 1.0.3 | current (what's new: [`V1/README.md`](V1/README.md#whats-new-in-103)) |
-| [`V2/`](V2/) | 2.3.0 | new: AI judge per rubric category (advisory; uses **your** Claude Code usage). Start with [`V2/HOW_TO_RUN.md`](V2/HOW_TO_RUN.md), then [`V2/README.md`](V2/README.md); what is judged: [`V2/RUBRIC.md`](V2/RUBRIC.md). Categories so far: dataset engineering, Hadoop MapReduce, Spark analytics. |
-| [`V3/`](V3/) | 3.0.0 | experimental: AI judge for the agentic factory (3.0 pts; advisory; uses your Claude or Antigravity usage). See [`V3/README.md`](V3/README.md) and [`V3/RUBRIC.md`](V3/RUBRIC.md). |
+| [`V1/`](V1/) | 1.0.4 | current (what's new: [`V1/README.md`](V1/README.md#whats-new-in-104): fewer false FAILs, from your feedback) |
+| [`V2/`](V2/) | 2.3.1 | (2.3.1: includes the V1 1.0.4 fixes; judge unchanged). AI judge per rubric category (advisory; uses **your** Claude Code usage). Start with [`V2/HOW_TO_RUN.md`](V2/HOW_TO_RUN.md), then [`V2/README.md`](V2/README.md); what is judged: [`V2/RUBRIC.md`](V2/RUBRIC.md). Categories so far: dataset engineering, Hadoop MapReduce, Spark analytics. |
+| [`V3/`](V3/) | 3.0.1 | experimental (3.0.1: includes the V1 1.0.4 fixes; judge unchanged): AI judge for the agentic factory (3.0 pts; advisory; uses your Claude or Antigravity usage). See [`V3/README.md`](V3/README.md) and [`V3/RUBRIC.md`](V3/RUBRIC.md). |
 
 ## What each version does
 

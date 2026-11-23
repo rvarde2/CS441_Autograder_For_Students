@@ -148,36 +148,95 @@ FORBIDDEN_FILES = [(r"(^|/)\.env(\..*)?$", ".env file"),
 REVIEW_FILES = [(r"(?<!example)\.tfvars$", "Terraform variables file: make sure it holds no secrets")]
 
 
+# 1.0.4 (student feedback): redaction and secret-scanning tests, and review reports about them, contain
+# secret-SHAPED values on purpose. The VALUE is classified first, then the location:
+#   placeholder (EXAMPLE/FAKE/TEST..., one repeated character, an alphabet or digit sequence,
+#     a private-key header with no key body)                     -> not a finding (counted only)
+#   realistic value in a test/fixture file or docs/agent-runs/   -> WARN: a human confirms it's not real
+#   realistic value anywhere else                                 -> FAIL
+PLACEHOLDER_WORDS = re.compile(r"EXAMPLE|FAKE|DUMMY|TEST|SAMPLE|PLACEHOLDER|REDACTED|XXXX|CHANGEME", re.I)
+KEY_PREFIX = re.compile(r"^(?:AKIA|ASIA|gh[pousr]_|github_pat_|sk-ant-|sk-(?:proj-)?|xox[baprs]-)")
+KEY_BODY = re.compile(r"^[A-Za-z0-9+/=]{40,}$")          # a line of a real PEM key's base64 body
+TEST_PATH = re.compile(r"(^|/)(src/test|tests?|fixtures?|testdata|__tests__|spec)/|"
+                       r"(Spec|Test|Tests|Suite|IT)\.(scala|java)$|_test\.py$|(^|/)test_\w+\.py$", re.I)
+
+
+def is_placeholder(kind, value, next_line=""):
+    if kind == "private key":                           # a header alone is a detector string, not a key
+        return not KEY_BODY.match(next_line.strip().lstrip("+").strip())
+    if PLACEHOLDER_WORDS.search(value):
+        return True
+    body = KEY_PREFIX.sub("", value.split("=")[-1].split(":")[-1].strip(" '\""))
+    if len(set(body)) <= 3:                              # 0000..., AAAA..., 1111...
+        return True
+    run = best = 1                                       # ABCDEFGH..., 12345678...
+    for a, b in zip(body, body[1:]):
+        run = run + 1 if ord(b) == ord(a) + 1 else 1
+        best = max(best, run)
+    return best >= 6
+
+
+def where_soft(path):
+    """Why a realistic value in this file is only a WARN, or None if it's a FAIL."""
+    if TEST_PATH.search(path):
+        return "test/fixture file: confirm it's not a real key"
+    if path.startswith("docs/agent-runs/"):
+        return "phase evidence: confirm it's not a real key"
+    return None
+
+
+def classify(path, kind, value, next_line, hard, soft, ignored, label):
+    if is_placeholder(kind, value, next_line):
+        ignored[kind] = ignored.get(kind, 0) + 1
+    elif (why := where_soft(path)):
+        soft.append(f"{label}: {kind} ({why})")
+    else:
+        hard.append(f"{label}: {kind}")
+
+
+def ignored_note(ignored):
+    return ([f"ignored as placeholders (documentation examples, FAKE/TEST values, sequences, a key header without "
+             f"a key): {', '.join(f'{k} x{n}' for k, n in sorted(ignored.items()))}"] if ignored else [])
+
+
 @check_group(phase=0)
 def secrets(repo, out):
     # K01: current content of tracked files (binary and >2 MB files skipped).
-    hard, soft = [], []
+    hard, soft, generic, ignored = [], [], [], {}
     for t in repo.tracked:
         raw = repo.read_bytes(t, max_bytes=2_000_000)     # None: missing, symlink, outside, or > 2 MB
         if raw is None or b"\0" in raw[:8000]:              # binary files skipped
             continue
-        for i, line in enumerate(raw.decode(errors="replace").splitlines(), 1):
-            hard += [f"{t}:{i}: {kind}" for kind, rx in SECRET_PATTERNS.items() if rx.search(line)]
+        lines = raw.decode(errors="replace").splitlines()
+        for i, line in enumerate(lines, 1):
+            for kind, rx in SECRET_PATTERNS.items():
+                if (m := rx.search(line)):
+                    classify(t, kind, m.group(0), lines[i] if i < len(lines) else "", hard, soft, ignored, f"{t}:{i}")
             if (m := GENERIC_SECRET.search(line)):
-                soft.append(f"{t}:{i}: possible hard-coded {m.group(1)}")
+                generic.append(f"{t}:{i}: possible hard-coded {m.group(1)}")
     out.add("K01", "No secrets in the current files (tracked by git)",
-            "FAIL" if hard else ("WARN" if soft else "PASS"), hard + soft)
+            "FAIL" if hard else ("WARN" if soft or generic else "PASS"), hard + soft + generic + ignored_note(ignored))
 
     # K02: every line ever ADDED in any commit on any branch. A secret deleted later is still
     # in history, so it's still leaked. --no-ext-diff/--no-textconv: no repo diff programs.
     if repo.is_git:
-        log = repo.git("log", "--all", "-p", "--no-color", "--no-ext-diff", "--no-textconv",
-                       "--format=@@COMMIT %h", timeout=300) or ""
-        hist, commit, fname = set(), "?", "?"
-        for line in log.splitlines():
+        log = (repo.git("log", "--all", "-p", "--no-color", "--no-ext-diff", "--no-textconv",
+                        "--format=@@COMMIT %h", timeout=300) or "").splitlines()
+        hard, soft, ignored, seen, commit, fname = [], [], {}, set(), "?", "?"
+        for n, line in enumerate(log):
             if line.startswith("@@COMMIT "):
                 commit = line.split()[1]
             elif line.startswith("+++ "):
                 fname = line[6:] if line.startswith("+++ b/") else line[4:]
             elif line.startswith("+") and not line.startswith("+++"):
-                hist |= {f"commit {commit}, {fname}: {k}" for k, rx in SECRET_PATTERNS.items() if rx.search(line)}
+                for kind, rx in SECRET_PATTERNS.items():
+                    if (m := rx.search(line)) and (commit, fname, kind, m.group(0)) not in seen:
+                        seen.add((commit, fname, kind, m.group(0)))
+                        classify(fname, kind, m.group(0), log[n + 1] if n + 1 < len(log) else "",
+                                 hard, soft, ignored, f"commit {commit}, {fname}")
+        hard, soft = sorted(set(hard)), sorted(set(soft))
         out.add("K02", "No secrets anywhere in git history (deleted secrets are still leaked)",
-                "FAIL" if hist else "PASS", sorted(hist))
+                "FAIL" if hard else ("WARN" if soft else "PASS"), hard + soft + ignored_note(ignored))
 
     # K03: "Do not commit secrets, .env files, Terraform state containing sensitive values ..."
     bad = [f"{t}: {why}" for t in repo.tracked for rx, why in FORBIDDEN_FILES if re.search(rx, t)]
@@ -304,17 +363,21 @@ def reports_vs_git(repo, out):
 
         # ---- E06: human gate states a decision and the accepted commit (same as commit.txt).
         #      Gate written before the commit existed (no hash, but commit.txt is valid): WARN.
-        #      A gate that names a DIFFERENT commit than commit.txt: FAIL.
+        #      A gate that mentions other commits but not commit.txt's: WARN (1.0.4; was FAIL). Gates
+        #      mention commits in context (a disclosed manual commit, a run folder named after a commit),
+        #      and commit.txt, the record G02 verifies, is what names the accepted commit.
+        #      FAIL only when neither the gate nor commit.txt names an existing commit.
         if ev.evidence_files(repo, d, "human-gate"):
-            hg = ev.evidence_text(repo, d, "human-gate")
-            accepted = [c for x in ev.hashes_in(hg) if (c := repo.resolve_commit(x))]
+            hg = ev.gate_text(repo, d)
+            accepted = list(dict.fromkeys(c for x in ev.hashes_in(hg) if (c := repo.resolve_commit(x))))
             if not accepted:
                 (e6w if listed else e6).append(
                     f"{tag}: the human gate names no existing commit" + (
                         f" (commit.txt has {listed[0][:10]}; the README asks the gate to state the accepted hash too)"
                         if listed else " and commit.txt names none either"))
             elif listed and not set(accepted) & set(listed):
-                e6.append(f"{tag}: the human gate accepts {accepted[0][:10]}, but commit.txt says {listed[0][:10]}")
+                e6w.append(f"{tag}: the human gate mentions {', '.join(c[:10] for c in accepted[:3])} but not the "
+                           f"accepted commit {listed[0][:10]} from commit.txt (the README asks the gate to state it)")
             if not DECISION.search(hg):
                 e6w.append(f"{tag}: the human gate doesn't state a decision (accepted / approved / rejected ...)")
 
@@ -337,7 +400,7 @@ def reports_vs_git(repo, out):
     out.add("E06", "human-gate.md states a decision and the accepted commit, matching commit.txt",
             "FAIL" if e6 else ("WARN" if e6w else "PASS"), e6 + e6w)
     # X07 (observation): which report label styles were recognised, to learn students' formats
-    out.add("X07", "Observation: report label styles recognised (colon, bold, heading, table)", "INFO",
+    out.add("X07", "Observation: report label styles recognised (colon, bold, heading, table, bare label)", "INFO",
             [", ".join(f"{k}: {v}" for k, v in sorted(style_seen.items())) or "none recognised"],
             data=dict(sorted(style_seen.items())))
     out.add("E07", "Commits per phase (several commits, repairs and late fixes are allowed)", "INFO", e7)

@@ -28,18 +28,22 @@ PROJECT_DIR = re.compile(r"""["']?\$\{?CLAUDE_PROJECT_DIR\}?["']?/?""")
 
 def hook_script(cmd):
     """(repo-relative script path, run via an interpreter?) for a hook command, or (None, False)
-    if it's an inline command. The project-dir variable in any quoting is removed first."""
+    if it's an inline command.
+    Split into words FIRST (shlex removes every kind of quoting), THEN drop the project-dir prefix
+    from each word. 1.0.0-1.0.3 removed the variable from the raw text first: for a whole quoted
+    path, "$CLAUDE_PROJECT_DIR/.claude/hooks/x.sh", that deleted the opening quote but not the
+    closing one, so the path kept a trailing '"' and existing hooks were reported missing (1.0.4)."""
     import shlex
-    cmd = PROJECT_DIR.sub("", cmd)
     try:
         tokens = shlex.split(cmd)
-    except ValueError:
-        tokens = cmd.split()
+    except ValueError:                                    # unbalanced quotes: best effort
+        tokens = [w.strip("'\"") for w in cmd.split()]
     via = False
     for t in tokens:
         if t in INTERPRETERS or t.startswith("-"):
             via = via or t in INTERPRETERS
             continue
+        t = PROJECT_DIR.sub("", t, count=1) if PROJECT_DIR.match(t) else t
         t = t.lstrip("/")
         t = t[2:] if t.startswith("./") else t
         if "/" in t or t.endswith((".sh", ".bash", ".py", ".js")):
@@ -148,11 +152,20 @@ def control_plane(repo, out):
     # F07: ".mcp.json with secret values omitted and environment-variable names preserved".
     # Only settings whose NAME looks secret are checked: ALLOW_WRITE=false is just config.
     secretish = re.compile(r"key|token|secret|passw|auth|credential|url|dsn", re.I)
+    # A value is a reference if it holds a ${VAR} and nothing else but an HTTP auth-scheme word:
+    # "${TOKEN}", "Bearer ${TOKEN}", "token ${TOKEN}". 1.0.0-1.0.3 accepted only a bare ${VAR}, but
+    # GitHub's remote MCP server needs "Bearer " in front of the token (1.0.4, three students).
     env_ref = re.compile(r"\$\{[A-Za-z_][A-Za-z0-9_]*(:-[^}]*)?\}")
+    auth_scheme = re.compile(r"(?i)(bearer|basic|token|apikey|api-key)?")
+
+    def is_reference(v):
+        rest = env_ref.sub("", v).strip()
+        return bool(env_ref.search(v)) and bool(auth_scheme.fullmatch(rest))
+
     literal = [f"server '{s}', {field} '{k}' looks secret but is a literal value; value not shown"
                for s, cfg in (repo.mcp.get("mcpServers", {}) or {}).items()
                for field in ("env", "headers") for k, v in (cfg.get(field) or {}).items()
-               if isinstance(v, str) and secretish.search(k) and not env_ref.fullmatch(v.strip())]
+               if isinstance(v, str) and secretish.search(k) and not is_reference(v)]
     out.add("F07", ".mcp.json: secret-looking settings use ${VAR} references, not literal values",
             "FAIL" if literal else "PASS", literal)
 
@@ -255,6 +268,18 @@ def code_lines(text):
     return [l for l in (text or "").splitlines() if l.strip() and not l.strip().startswith("#")]
 
 
+# Guards hold their patterns as REGEX SOURCE: '\baws\b\s+emr\s+terminate'. Read literally, "\baws\b" has
+# a word character ('b') right before "aws", so the categories' own \baws\b never matched (1.0.4, a
+# student's working guard FAILed R03). Regex syntax is turned back into the words it stands for.
+REGEX_SPACE = re.compile(r"\\s[+*]?|\[\[:space:\]\][+*]?|\[ \\t\][+*]?|\\ ")
+REGEX_EDGE = re.compile(r"\\[bB<>]|\(\?i\)")
+
+
+def unregex(line):
+    line = REGEX_EDGE.sub("", REGEX_SPACE.sub(" ", line))
+    return re.sub(r"\\([.\-/])", r"\1", line)                # \. \- \/ -> the character itself
+
+
 @check_group(phase=1)
 def scholarchain_content(repo, out):
     # R01: the four hooks the "Required factory artifacts" table names.
@@ -279,10 +304,13 @@ def scholarchain_content(repo, out):
         out.add("R03", "guard-dangerous.sh covers every destructive category ScholarChain names", "FAIL",
                 ["guard-dangerous.sh missing"])
     else:
-        lines = code_lines(guard)
+        raw = code_lines(guard)
         # a pattern may be split over nearby lines (e.g. array entries "aws", "neptune", "delete-db-cluster"):
-        # also look at every window of 3 consecutive non-comment lines (1.0.1)
-        windows = lines + [" ".join(lines[i:i + 3]) for i in range(len(lines))]
+        # also look at every window of 3 consecutive non-comment lines (1.0.1). Both the raw text and the
+        # text with regex syntax read as words (1.0.4) are searched, so nothing that matched before is lost.
+        windows = []
+        for lines in (raw, [unregex(l) for l in raw]):
+            windows += lines + [" ".join(lines[i:i + 3]) for i in range(len(lines))]
         gaps = [c for c, rx in GUARD_CATEGORIES.items() if not any(re.search(rx, w, re.I) for w in windows)]
         out.add("R03", "guard-dangerous.sh covers every destructive category ScholarChain names",
                 "FAIL" if gaps else "PASS",
@@ -329,7 +357,9 @@ def scholarchain_content(repo, out):
     # tools". Presence only (least privilege needs judgement). Unpinned @latest servers can change.
     servers = repo.mcp.get("mcpServers", {}) or {}
     blob = [(n + " " + json.dumps(s)).lower() for n, s in servers.items()]
-    want = {"GitHub": r"github", "AWS API": r"aws-api|aws_api|call_aws",   # not '\baws\b': that matched aws-documentation
+    # AWS API: the awslabs aws-api server, or AWS's managed MCP server "aws-mcp" (1.0.4). Never '\baws\b':
+    # that matched aws-documentation.
+    want = {"GitHub": r"github", "AWS API": r"aws-api|aws_api|call_aws|\baws-mcp\b|\baws_mcp\b",
             "Terraform": r"terraform", "documentation": r"doc"}
     problems = [f"no {k} server" for k, rx in want.items() if not any(re.search(rx, b) for b in blob)]
     problems += [f"server '{n}' uses @latest: it can change under you (pin a version)"

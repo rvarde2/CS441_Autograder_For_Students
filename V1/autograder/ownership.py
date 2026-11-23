@@ -52,15 +52,32 @@ def _from_ai(repo, data):
             "source": f"AI extraction ({Path(repo.ownership_file).name}), citations verified by code"}
 
 
+# A table whose second column says the agent RUNS, DECIDES, REVIEWS ... is not an ownership table:
+# "| `scripts/archive-evidence.sh` | Run by: deploy-engineer |" names who runs a script another agent owns.
+NOT_OWNERSHIP = re.compile(r"\b(run|runs|ran|invok|call|trigger|escalat|decid|approv|review|gate|notif|consult)", re.I)
+
+
 def _from_table(repo):
     rows = []
     agents = set(repo.agents)
+    header, in_table = None, False
     for i, line in enumerate((repo.read("docs/agents.md") or "").splitlines(), 1):
-        if not line.lstrip().startswith("|") or re.fullmatch(r"[\s|:\-]+", line):
+        if not line.lstrip().startswith("|"):
+            in_table = False
+            continue
+        if re.fullmatch(r"[\s|:\-]+", line):
             continue
         cols = [c.strip() for c in line.strip().strip("|").split("|")]
-        if len(cols) < 2:
+        if not in_table:                  # the first row of a table is its header (1.0.4)
+            in_table, header = True, cols
             continue
+        if len(cols) < 2 or (len(header) > 1 and NOT_OWNERSHIP.search(header[1])):
+            continue
+        # **bold** words in column 1 are emphasis, not a wildcard path: "**Security change**" (1.0.4).
+        # Only bold that wraps plain words, and never in a cell with `backticked` paths: there "**" is a
+        # wildcard ("`src/main/**`, `x/**`" must keep both).
+        if "`" not in cols[0]:
+            cols[0] = re.sub(r"(\*\*|__)([A-Za-z][^*_`/]*?)\1", r"\2", cols[0])
         # paths: `backticked`, else path-like tokens (contain / or * or a .ext)  (1.0.1)
         #   an unquoted token is a path only if it exists in the repo/history, has a wildcard, or
         #   ends in a file extension: 'Bootstrap/evolve' in a lifecycle table is NOT a path

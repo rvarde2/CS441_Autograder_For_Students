@@ -48,10 +48,25 @@ def evidence_text(repo, phase_dir, kind):
     return "\n\n".join(repo.read(p) or "" for p in evidence_files(repo, phase_dir, kind))
 
 
+def gate_text(repo, phase_dir):
+    """The human gate's text. human-gate* files when there are any; other gate* files (gate.md,
+    gate-summary.md, ...) only when there is none (1.0.4: a gate SUMMARY mentioned other commits in
+    context and was read as a second gate)."""
+    files = evidence_files(repo, phase_dir, "human-gate")
+    files = [p for p in files if norm(p.stem).startswith("humangate")] or files
+    return "\n\n".join(repo.read(p) or "" for p in files)
+
+
 # ---------------------------------------------------------------------- report fields
 _LABELS = {norm(syn): field for field, syns in FORMATS["report_fields"].items() for syn in syns + [field]}
 _HEADING = re.compile(r"^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$")
-_COLON = re.compile(r"^\s*(?:[>*\-+]\s*)*(?:\*\*|__)?\s*([A-Za-z][A-Za-z \-_/]{1,40}?)\s*(?:\*\*|__)?\s*:\s*(?:\*\*|__)?\s*(.*)$")
+# "LABEL: value", "**Label:** value", and (1.0.4) a note in brackets before the colon:
+# "FILES CREATED (all under modules/):"
+_COLON = re.compile(r"^\s*(?:[>*\-+]\s*)*(?:\*\*|__)?\s*([A-Za-z][A-Za-z \-_/]{1,40}?)\s*(?:\([^)\n]{0,80}\))?"
+                    r"\s*(?:\*\*|__)?\s*:\s*(?:\*\*|__)?\s*(.*)$")
+# (1.0.4) a label alone on its line, no colon: "FILES MODIFIED". ALL CAPS only, so a prose line such as
+# "Validation" or "Commands" in a list is never taken for a label.
+_BARE = re.compile(r"^\s*(?:\*\*|__)?([A-Z][A-Z \-_/]{2,40}?)(?:\s*\([^)\n]{0,80}\))?(?:\*\*|__)?\s*$")
 
 
 def _label(text):
@@ -87,6 +102,9 @@ def parse_report(text):
                 continue
         if (m := _COLON.match(line)) and (field := _label(m.group(1))):
             start(field, m.group(2).strip(), "bold" if "**" in line or "__" in line else "colon")
+            continue
+        if (m := _BARE.match(line)) and (field := _label(m.group(1))):
+            start(field, "", "bare")
             continue
         if cur:
             fields[cur] += "\n" + line
@@ -133,9 +151,26 @@ def claimed_paths(repo, section):
             else:
                 continue                                       # outside this repo: ignore, never echo
         tok = tok[2:] if tok.startswith("./") else tok
+        if tok not in known and _FILE_SHAPED.match(tok):
+            tok = _complete(repo, tok)
         if tok in known or _FILE_SHAPED.match(tok):
             found.append(tok)
     return list(dict.fromkeys(found))
+
+
+def _complete(repo, partial):
+    """A partial path from a report that lists files as an indented TREE ("modules/" then
+    "  storage/README.md") -> the one real path that ends with it. Kept as written when no file or
+    several files match, so a fabricated or ambiguous claim is still reported (1.0.4)."""
+    if not hasattr(repo, "_suffix_index"):
+        idx = {}
+        for f in repo.history_paths:
+            parts = f.split("/")
+            for i in range(1, len(parts)):
+                idx.setdefault("/".join(parts[i:]), set()).add(f)
+        repo._suffix_index = idx
+    hits = repo._suffix_index.get(partial, set())
+    return next(iter(hits)) if len(hits) == 1 else partial
 
 
 # ---------------------------------------------------------------------- commit hashes
