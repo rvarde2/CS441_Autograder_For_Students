@@ -1,12 +1,15 @@
 """
-main.py: runs every check group, labels checks that aren't due yet, prints, writes JSON.
+main.py: runs every check group, prints, writes JSON/CSV.
 
 Flow:
   0. wrong_folder(repo)          a subfolder of a repo, or a folder above repos -> say which folder, exit 2
   1. Repo(root)                  safe, read-only view of the student's repository (repo.py)
   2. registry.run_all(repo)      every @check_group (checks/*), in phase order -> list of results
-  3. "not yet due" relabelling   apply_due() below
-  4. write JSON/CSV, then print  exit 1 if any due check FAILs, else 0
+  3. write JSON/CSV, then print  exit 1 if any check FAILs, else 0
+Every check applies to every repository, whatever phase it has reached (1.0.5). Until 1.0.4 a check
+from a later phase than the repo's highest docs/agent-runs/phase-NN was shown as LATER: in final grading
+that hid missing work (a repo that stopped at phase 9 had no FAIL for its missing README or tests).
+due_phase stays in every result as information: the phase whose work order introduces the check.
 """
 import argparse
 import csv
@@ -21,7 +24,7 @@ from . import checks  # noqa: F401  (importing registers every check group)
 from .registry import run_all
 from .repo import Repo
 
-ICON = {"PASS": "ok  ", "FAIL": "FAIL", "WARN": "warn", "INFO": "info", "LATER": "later"}
+ICON = {"PASS": "ok  ", "FAIL": "FAIL", "WARN": "warn", "INFO": "info"}
 CSV_COLUMNS = ["student", "repo", "version", "run_date", "current_phase", "check_id", "title", "status",
                "due_phase", "details", "observed"]
 STUDENT_ID = re.compile(r"[A-Za-z0-9._-]{1,64}")
@@ -49,19 +52,6 @@ def write_csv(path, student, repo_name, current, results):
                                                r["id"], r["title"], r["status"], r["due_phase"],
                                                " | ".join(r["details"]),
                                                json.dumps(r["data"], sort_keys=True) if "data" in r else "")])
-
-
-def apply_due(results, current):
-    """A check whose phase is after the student's current phase becomes LATER, ALWAYS, even if it
-    would pass: an early pass is often vacuous ("all hooks executable" is true when there are no
-    hooks). Its would-be status is kept in the details. INFO stays INFO.
-    current=None (no phase folders): the phase is unknown, nothing is relaxed. Otherwise a repo
-    with no evidence at all would look better than one with some."""
-    for r in results:
-        if current is not None and r["due_phase"] > current and r["status"] != "INFO":
-            r["details"].insert(0, f"not due yet: needed by phase {r['due_phase']}; your highest phase is "
-                                   f"{current} (right now it would be {r['status']})")
-            r["status"] = "LATER"
 
 
 def wrong_folder(repo):
@@ -109,8 +99,7 @@ def main(argv=None):
         return 2
     run = run_all(repo)
     results = run.items
-    current = repo.current_phase
-    apply_due(results, current)
+    current = repo.current_phase          # information only (1.0.5: nothing depends on it)
 
     # Save the results BEFORE printing: if the output is piped into `head` and the pipe closes,
     # printing stops, but the CSV/JSON are already written.
@@ -130,13 +119,12 @@ def main(argv=None):
 
     print(f"ScholarChain self-check v{VERSION}   repo: {root}")
     print("current phase: " + (f"{current} (highest docs/agent-runs/phase-NN)" if current is not None
-                               else "unknown (no docs/agent-runs/phase-NN): every check applies") + "\n")
+                               else "unknown (no docs/agent-runs/phase-NN)") + "\n")
     for r in results:
         print(f"[{ICON[r['status']]}] {r['id']}  {r['title']}")
         for d in r["details"]:
             print(f"         - {d}")
     counts = {s: sum(r["status"] == s for r in results) for s in ICON}
-    print(f"\n{counts['PASS']} pass, {counts['FAIL']} fail, {counts['WARN']} warn, {counts['INFO']} info, "
-          f"{counts['LATER']} not yet due")
+    print(f"\n{counts['PASS']} pass, {counts['FAIL']} fail, {counts['WARN']} warn, {counts['INFO']} info")
 
     return 1 if counts["FAIL"] else 0

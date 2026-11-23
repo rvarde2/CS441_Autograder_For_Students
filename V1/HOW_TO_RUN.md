@@ -61,10 +61,10 @@ Your results are saved either way.
 
 ## 4. Read the result
 
-A run looks like this (a repository that has just finished Phase 0):
+A run looks like this (a repository that has just finished Phase 0, so later work shows as FAIL):
 
 ```
-ScholarChain self-check v1.0.2   repo: /home/you/projects/my-scholarchain
+ScholarChain self-check v1.0.5   repo: /home/you/projects/my-scholarchain
 current phase: 0 (highest docs/agent-runs/phase-NN)
 
 [ok  ] S01  No symlinks pointing outside the repo
@@ -72,13 +72,13 @@ current phase: 0 (highest docs/agent-runs/phase-NN)
 [ok  ] P01  Phase evidence folders docs/agent-runs/phase-NN/
          - phases found: phase-00
 ...
-[later] R01  Required hooks: guard-dangerous, format-scala, verify-tests-ran, validate-agent-files
-         - not due yet: needed by phase 1; your highest phase is 0 (right now it would be FAIL)
+[FAIL] R01  Required hooks: guard-dangerous, format-scala, verify-tests-ran, validate-agent-files
+         - .claude/hooks/guard-dangerous.sh: missing
 ...
-17 pass, 0 fail, 0 warn, 6 info, 28 not yet due
+21 pass, 19 fail, 5 warn, 6 info
 
 Saved: /home/you/CS441_Autograder_For_Students/V1/selfcheck-results/selfcheck-ab123.csv   <- the only file to share
-       /home/you/CS441_Autograder_For_Students/V1/selfcheck-results/selfcheck-results.json   (keep on your computer; grader version 1.0.2)
+       /home/you/CS441_Autograder_For_Students/V1/selfcheck-results/selfcheck-results.json   (keep on your computer; grader version 1.0.5)
 ADVISORY ONLY: this is not your grade. See README.md for what it does and does not check.
 ```
 
@@ -88,10 +88,11 @@ ADVISORY ONLY: this is not your grade. See README.md for what it does and does n
 | `FAIL` | fix it: the indented lines say what and where (file, line, phase) |
 | `warn` | look at it; it may be fine (e.g. an overlap you documented), or worth fixing |
 | `info` | nothing; recorded only (lines starting with `X` are observations about how students work) |
-| `later` | nothing yet; it's due in a later phase and shows you what's coming |
 
-**Your phase** is your highest `docs/agent-runs/phase-NN/` folder. If you have none, every check
-applies and you'll see many FAILs: create `docs/agent-runs/phase-00/` as the assignment describes.
+**Every check applies, whatever phase you have reached.** Early in the project you will see FAILs for
+work you haven't done yet; that is expected. The `due_phase` column of the CSV (and the check table in
+`README.md`) says which phase's work order each check belongs to, so you can tell "not done yet" from
+"done but wrong". The final grading run gives the same result for the same commit.
 
 Look up any check ID (F02, E03, ...) in `README.md` ("Every check") or `DESIGN.md` (how it decides).
 
@@ -149,5 +150,5 @@ and MCP servers are not loaded. You don't need it; without it, everything else s
 | E01 `warn`: "only N of 14 labels recognised" | your report uses a style the checker doesn't know; the assignment's field names (`FILES CREATED:` ...) always work. Headings (`## Files Created`), **bold** labels and tables are recognised too. |
 | Lots of FAILs on a new repository | normal before your first `docs/agent-runs/phase-00/` exists (section 4) |
 
-Exit codes, for scripts: `0` = no FAIL among checks that are due, `1` = at least one FAIL,
+Exit codes, for scripts: `0` = no FAIL, `1` = at least one FAIL,
 `2` = a setup problem (one of the messages above); nothing is saved on `2`.

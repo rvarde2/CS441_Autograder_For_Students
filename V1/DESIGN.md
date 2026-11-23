@@ -1,6 +1,6 @@
 # CS441 ScholarChain Autograder: V1 design
 
-Version 1.0.4. How the self-check works and exactly how each check decides, for students and
+Version 1.0.5. How the self-check works and exactly how each check decides, for students and
 course staff. How to run it is in `HOW_TO_RUN.md`; what changed in each version is in `README.md`.
 It checks a student's OWN project repository (their implementation of the ScholarChain
 assignment), not the ScholarChain assignment repository.
@@ -33,7 +33,9 @@ reports claiming work that wasn't done, ownership overlaps, tutorial forks).
 4. **PASS must mean something a copy can't fake.** File existence alone is passed by copying the
    tutorial, so V1 adds copy detection (C) and ScholarChain-only content checks (R), and compares
    phase reports with git history (E).
-5. **Phase-aware.** Work from a later phase shows as `later`, not FAIL.
+5. **Every check applies to every repository** (1.0.5). The phase whose work order introduces a check
+   is recorded with it (`due_phase`), as information only. Until 1.0.4 checks from a later phase than the
+   repo's showed as `later`; the same tool is used for final grading, where that would hide missing work.
 6. **Proven against planted defects.** Every check has been shown to FAIL on a test repository
    built to break it, not only to PASS on a good one.
 
@@ -60,8 +62,7 @@ autograder/main.py
          checks/phase13_automation.py phase 13 U01
          checks/requirements.py    per row  B01 M01-M04 W01 W02   (the requirements TABLE, data/phase_requirements.json)
          checks/observations.py    info     X01-X03 X06           (+ X04 in always.py): record, never judge
-   3. apply_due(results, current phase)  FAIL/WARN/PASS of a not-yet-due check -> LATER
-   4. print, write JSON and CSV, exit 0/1
+   3. write JSON and CSV, print, exit 0/1
 ```
 
 ## 4. Code layout
@@ -74,7 +75,7 @@ V1/
 ├── ownership.schema.json   the JSON shape the AI must return
 ├── autograder/
 │   ├── __init__.py         VERSION
-│   ├── main.py             runner, "not yet due" labelling, output, exit code
+│   ├── main.py             runner, output, exit code
 │   ├── registry.py         @check_group(phase=N), Results, run_all
 │   ├── repo.py             ALL access to the student's repo: safe reads, hardened git, parsed config
 │   ├── ownership.py        ownership rows (AI or table parser), citation verification, path patterns
@@ -110,11 +111,14 @@ Rules that keep it maintainable:
   separate table that can drift.
 - **Shared parsed data is computed once** (`cached_property`): agents, settings, phases, ownership.
 
-## 5. The phase model
+## 5. Phases: information, not relaxation
 
-**Current phase** = the highest `docs/agent-runs/phase-NN/` folder.
+**Current phase** = the highest `docs/agent-runs/phase-NN/` folder. It is printed and recorded, and
+nothing depends on it: every check applies to every repository, at every phase (1.0.5). The table
+says which phase's work order introduces each check (`due_phase` in the JSON/CSV), so a student at
+phase 9 can see that a FAIL of W02 is phase-17 work not done yet.
 
-| Due by | Checks | Why this phase (ScholarChain phase list) |
+| Work order phase | Checks | Why this phase (ScholarChain phase list) |
 |---|---|---|
 | 0 | S01, F02, P01, G01-G03, K01-K03, E01-E07, C01-C03 | evidence, git, secrets and copying apply from the first commit; Phase 0 creates the seed agent (F02) |
 | 1 | F01, F03-F07, O01-O06, R01-R08 | Phase 1: "the factory builds the ScholarChain factory" |
@@ -127,13 +131,9 @@ Rules that keep it maintainable:
 | 17 | W01, W02 | Phase 17: documentation, final review, release |
 | — | X01-X06 | observations: always `info`, never pass or fail |
 
-`LATER` rules (main.py `apply_due`):
-- A not-yet-due check is **always** `LATER`, even if it would pass, because an early pass is
-  usually vacuous ("all hooks are executable" is true when there are no hooks). The would-be
-  status is kept in its first detail line.
-- `INFO` stays `INFO`.
-- **No phase folders → phase unknown → nothing is relaxed.** Otherwise a repo with no evidence
-  would look better than one with some.
+Until 1.0.4 a check from a later phase than the repo's was shown as `LATER` (neither pass nor fail),
+and P01 accepted missing files in the highest phase as "in progress". Both are gone: the advisory
+runs and the final grading run give the same result for the same commit.
 
 ## 6. Results
 
@@ -143,7 +143,6 @@ Rules that keep it maintainable:
 | FAIL | it doesn't; details say what and where | **yes** |
 | WARN | needs human judgement (e.g. an overlap that may be documented) | no |
 | INFO | recorded, not judged | no |
-| LATER | due in a later phase | no |
 
 Exit code: 1 if any FAIL, else 0. 2 = usage/setup error, including the wrong folder: the student's
 repository can have any name and location (the ScholarChain repo is only the assignment; each
@@ -194,7 +193,7 @@ Levels: F = FAIL when broken, W = WARN, I = INFO. "Source" quotes or names the S
 |---|---|---|---|---|
 | S01 | F | no symlink points outside the repo | safety | resolve every symlink |
 | F02 | F | every agent file has `name`, `description`, explicit `tools` | Phase 0: "Require least privilege and explicit tools fields" | parse frontmatter |
-| P01 | F/W | phase folders (`phase-03`, `phase_03`, `Phase-3`), none skipped, each with a prompt, agent report(s), human gate and commit record under any accepted name; missing in the CURRENT phase = W (in progress); commits labelled phase-NN without a folder = W | "Agent-generated deliverable evidence" | section 8.7 |
+| P01 | F/W | phase folders (`phase-03`, `phase_03`, `Phase-3`), none skipped, each with a prompt, agent report(s), human gate and commit record under any accepted name; commits labelled phase-NN without a folder = W | "Agent-generated deliverable evidence" | section 8.7 |
 | G01 | F | git repository with history | Git logistics | `git log` |
 | G02 | F | each commit.txt names a commit that exists | evidence | `git cat-file -e` |
 | G03 | F | each phase has a commit whose message **starts** `phase-NN` | "commit messages that identify the phase" | message prefix (prose mentions don't count) |

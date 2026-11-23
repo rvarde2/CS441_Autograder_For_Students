@@ -41,8 +41,8 @@ cd ~/CS441_Autograder_For_Students/V2
 ./judge.sh --student <your NetID> ~/projects/my-scholarchain --dry-run
 ```
 
-It shows your current phase (your highest `docs/agent-runs/phase-NN` folder), which categories are due,
-and which are skipped as not yet due. Nothing is sent and nothing is used.
+It shows your current phase (your highest `docs/agent-runs/phase-NN` folder) and the categories it will judge:
+all of them, whatever your phase (use `--category` to choose). Nothing is sent and nothing is used.
 
 If you see `Permission denied`: `bash judge.sh ...`, or once `chmod +x judge.sh`.
 
@@ -68,7 +68,6 @@ Useful options:
 | Option | What it does |
 |---|---|
 | `--category hadoop_mapreduce` | judge only that category (repeat the option for several) |
-| `--include-not-due` | also judge categories whose phase you have not reached (they will mostly be `missing`) |
 | `--adapter claude` / `--adapter antigravity` | choose the AI tool without being asked |
 | `--yes` | do not ask before starting |
 
@@ -93,6 +92,5 @@ match your files, or nothing in your project seems to call the code the item is 
 | `is not the root folder of a git repository` | point it at the folder that contains `.git` |
 | `needs the Python package jsonschema` | `python3 -m pip install --user jsonschema` |
 | `Claude Code ... is older than 2.1.326` | `claude update` |
-| `skip <category>: due at phase N` | expected before that phase; `--include-not-due` judges it anyway |
 | `no valid run` in a category | the AI's answer could not be verified (see `<category>/result.md`); run that category again |
 | usage limit reached | wait for your plan's usage to reset; `--category` lets you judge one category at a time |

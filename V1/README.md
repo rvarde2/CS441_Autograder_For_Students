@@ -28,6 +28,16 @@ Results are printed and saved in `./selfcheck-results/` (always outside your rep
 - `selfcheck-results.json`: the same results plus an index of where your files are, for tools.
   **Keep it on your computer; don't send it.** Only the CSV is ever shared.
 
+## What's new in 1.0.5
+
+- **Every check applies, whatever phase you have reached.** There is no `later` any more: a check for
+  work you haven't done yet shows FAIL or warn, like any other. This is the same result the final grading
+  run will give for the same commit, so nothing changes between what you see and what is graded. The
+  `due_phase` column says which phase's work order a check belongs to, so you can tell "phase-17 work not
+  done yet" from a problem in work you have done.
+- **P01:** missing evidence files (prompt, report, gate, commit record) are a FAIL in every phase, including
+  your highest one (it was a warn, "in progress?").
+
 ## What's new in 1.0.4
 
 After the first round of student feedback (thank you, especially for the notes on why a result was wrong).
@@ -103,12 +113,12 @@ If you ran 1.0.0: `git pull` and run again.
 | `FAIL` | something required is missing or wrong; the lines below say what and where |
 | `warn` | something a human should look at (it may be fine, e.g. an overlap you documented) |
 | `info` | recorded, not judged |
-| `later` | needed by a later phase than yours; shown so you know what's coming |
 
-**Your phase** is your highest `docs/agent-runs/phase-NN/` folder. If you have none, the checker
-can't tell your phase and applies every check.
+**Every check applies to every repository**, whatever phase you have reached. Your phase (your highest
+`docs/agent-runs/phase-NN/` folder) is shown for information, and each check's `due_phase` (in the CSV and
+the table below) says which phase's work order introduces it.
 
-The exit code is 1 if any check that is already due FAILs, otherwise 0.
+The exit code is 1 if any check FAILs, otherwise 0.
 
 ## Phase evidence: what the checker expects
 
@@ -172,7 +182,9 @@ and the file names/lines each problem was found at, not your files' contents.
 
 ## Every check
 
-| ID | What it checks | Due by phase |
+Every check applies to every repository; the last column is the phase whose work order introduces it.
+
+| ID | What it checks | Work order phase |
 |---|---|---|
 | A01 | Spark code doesn't collect data to one machine (.collect, .toLocalIterator, ...) | 6 |
 | H01 | Hadoop MapReduce is used (classes extending Mapper and Reducer) | 4 |

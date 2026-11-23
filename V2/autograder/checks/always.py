@@ -60,15 +60,14 @@ INDEX_KEY = {"prompt": "prompt", "agent-report": "agent_report", "human-gate": "
 def phase_evidence(repo, out):
     # "For each phase, docs/agent-runs/phase-NN/ must contain: prompt.md, agent-report.md,
     #  human-gate.md, commit.txt". Name variants are accepted (evidence.py, data/evidence_formats.json):
-    #  agent-report-01.md, phase_03/, Human_Gate.md, ... A missing file is FAIL, except in the CURRENT
-    #  (highest) phase, which may still be in progress: WARN.
+    #  agent-report-01.md, phase_03/, Human_Gate.md, ... A missing file is FAIL in every phase (1.0.5: the
+    #  highest phase was a WARN, 'in progress?', which in final grading hid a missing gate or commit record).
     title = "Phase evidence folders docs/agent-runs/phase-NN/"
     if not repo.phases:
         out.add("P01", title, "FAIL",
                 ["docs/agent-runs/ has no phase-NN folders (rubric: 'no agent evidence' fails the workflow requirement)"])
         return
     fail, warn = [], []
-    current = repo.current_phase
     for d in repo.phases:
         for k in EVIDENCE_KINDS:                       # index: the actual evidence file names
             out.record("phases", d.name, INDEX_KEY[k], value=[repo.rel(p) for p in ev.evidence_files(repo, d, k)])
@@ -76,8 +75,7 @@ def phase_evidence(repo, out):
         missing = [k for k in EVIDENCE_KINDS if not ev.evidence_files(repo, d, k)]
         if missing:
             msg = f"{repo.rel(d)}/: missing {', '.join(missing)} (name variants are accepted, e.g. agent-report-01.md, Human_Gate.md)"
-            (warn if repo.phase_number(d) == current else fail).append(
-                msg + (" [current phase: in progress?]" if repo.phase_number(d) == current else ""))
+            fail.append(msg)
     nums = sorted({repo.phase_number(d) for d in repo.phases})
     fail += [f"phase-{n:02d} is missing between others" for n in range(nums[0], nums[-1] + 1) if n not in nums]
     # commits labelled phase-NN for a phase that has no evidence folder (e.g. phase-00 work, no phase-00/)

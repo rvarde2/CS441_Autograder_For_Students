@@ -1,14 +1,15 @@
 """
-grade_all.py (V2 entry point): judge every SHIPPED and DUE rubric category of one repository with
+grade_all.py (V2 entry point): judge every SHIPPED rubric category of one repository with
 the AI, then write one CSV of verdicts. Students run it on their own repo (advisory); the instructor
 runs the same code on fresh clones for grading.
 
     python3 -I grade_all.py <repo> [--student NETID] [--category ID ...]
-                            [--include-not-due] [--yes] [--dry-run] [--out DIR]
+                            [--yes] [--dry-run] [--out DIR]
 
 Shipped categories = the rubric files present in rubric/ (the package decides, not this code).
-Due = the rubric's phase <= the repo's current phase (highest docs/agent-runs/phase-NN). A repo with no
-phase folders: every category is due (same rule as V1: nothing relaxed).
+Every shipped category is judged, whatever phase the repo has reached (1.0.5 / 2.3.2 / 3.0.2: categories
+whose phase was not reached used to be skipped, which in final grading would hide missing work). They run
+in project phase order (datasets before Hadoop before Spark).
 Nothing in the repository is executed. Each category is judged by grade_category.py (unchanged).
 The CSV holds verdicts only: no reasons, no quotes from the code (share only the CSV).
 """
@@ -119,7 +120,7 @@ def main():
     a_runs = 1                                         # always ONE run per category (user decision Nov 18)
     ap.add_argument("--adapter", choices=("claude", "antigravity"),
                     help="AI tool: claude or antigravity. If omitted you are asked (default: claude).")
-    ap.add_argument("--include-not-due", action="store_true", help="also judge categories whose phase is not reached")
+    ap.add_argument("--include-not-due", action="store_true", help=argparse.SUPPRESS)   # no-op since 2.3.2: kept so old commands still work
     ap.add_argument("--yes", action="store_true", help="do not ask before starting the AI runs")
     ap.add_argument("--dry-run", action="store_true", help="build everything the AI would get; no AI call, no cost")
     ap.add_argument("--out", help="results folder (default: results/<repo>-<time> in the V2 folder)")
@@ -136,19 +137,11 @@ def main():
     if unknown:
         sys.exit(f"unknown or not yet available categories: {unknown}; available: {shipped}")
 
-    phase = repo.current_phase
-    plan, skipped = [], []
-    for c in wanted:
-        due = min(json.loads((HERE / "rubric" / f"{c}.json").read_text())["evidence"].get("phases") or [0])
-        (plan if phase is None or due <= phase or a.include_not_due else skipped).append((c, due))
-    plan.sort(key=lambda x: (x[1], x[0]))                # project phase order: datasets (3) before spark (6)
+    phase = repo.current_phase                           # information only: every category is judged
+    plan = sorted(((c, min(json.loads((HERE / "rubric" / f"{c}.json").read_text())["evidence"].get("phases") or [0]))
+                   for c in wanted), key=lambda x: (x[1], x[0]))   # project phase order: datasets (3) before spark (6)
     print(f"ScholarChain V3 {V2_VERSION}   repo: {repo_root}")
-    print(f"current phase: {phase if phase is not None else 'unknown (no docs/agent-runs/phase-NN): every category is due'}")
-    for c, due in skipped:
-        print(f"  skip {c}: due at phase {due} (use --include-not-due to judge it anyway)")
-    if not plan:
-        print("nothing to judge yet.")
-        return 0
+    print(f"current phase: {phase if phase is not None else 'unknown (no docs/agent-runs/phase-NN)'}")
 
     if a.adapter is None:
         a.adapter = choose_tool(policy, ask=sys.stdin.isatty() and not a.yes and not a.dry_run)

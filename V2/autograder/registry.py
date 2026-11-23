@@ -1,8 +1,8 @@
 """
 registry.py: how checks are declared, collected and labelled.
 
-A CHECK GROUP is one function that runs a few related checks. It declares the phase by which
-its checks are due:
+A CHECK GROUP is one function that runs a few related checks. It declares the phase whose work order
+introduces its checks (recorded as due_phase, information only: every check applies to every repo, 1.0.5):
 
     @check_group(phase=1)
     def control_plane(repo, out):
@@ -14,9 +14,8 @@ versions. Never reuse or renumber an ID; retire it and add a new one.
 Statuses:
   PASS   the fact holds
   FAIL   the fact doesn't hold; details say what and where
-  WARN   something a human (or the later AI grader) must judge, e.g. a documented overlap
+  WARN   something a human (or the AI grader) must judge, e.g. a documented overlap
   INFO   recorded, not judged
-  LATER  set by main.py: the check is due in a later phase than the student's current one
 """
 
 GROUPS = []   # (phase, function), in the order the modules registered them

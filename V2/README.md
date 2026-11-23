@@ -10,16 +10,17 @@ V1 checks structure and process deterministically; V2 judges the content. Use bo
 
 ## Categories in this version
 
-| Category | Rubric points | Judged from phase | Status |
+| Category | Rubric points | Work order phase | Status |
 |---|---:|---:|---|
 | `dataset_engineering` (Dataset engineering) | 1.0 | 3 | available |
 | `hadoop_mapreduce` (Hadoop MapReduce) | 2.0 | 4 | available |
 | `spark_analytics` (Spark coauthorship analytics) | 3.0 | 6 | available |
 | other categories | | | coming in later versions (`git pull`) |
 
-A category is judged only once your repository has reached its phase (your highest
-`docs/agent-runs/phase-NN` folder). Earlier, every item would just come back "missing" and use your
-usage for nothing. Use `--include-not-due` to judge it anyway.
+**Every category is judged on every run, whatever phase you have reached** (2.3.2). A category whose work
+you haven't done yet comes back mostly `missing`: that is a fact about your repository, the same result
+the final grading run gives for the same commit. To save usage while you work, judge only the categories
+you want with `--category`.
 
 ## 1. What you need
 
@@ -53,7 +54,7 @@ cd ~/CS441_Autograder_For_Students/V2
 ./judge.sh --student <your NetID> ~/projects/my-scholarchain             # the real run (asks first)
 ```
 
-Options: `--category dataset_engineering` (only that one; repeatable), `--yes` (don't ask), `--include-not-due`.
+Options: `--category dataset_engineering` (only that one; repeatable), `--yes` (don't ask).
 Each category is judged once per run of the script.
 
 ## 3. Read the results

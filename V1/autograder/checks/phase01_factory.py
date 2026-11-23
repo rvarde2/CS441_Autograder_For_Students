@@ -323,7 +323,8 @@ def scholarchain_content(repo, out):
     out.add("R04", "settings.json has explicit allow AND deny rules, and PreToolUse, PostToolUse, Stop hooks",
             "FAIL" if problems else "PASS", problems)
 
-    # R05: commands route to agents that exist; scripts they run exist (WARN: often a later phase).
+    # R05: commands route to agents that exist; scripts they run exist (WARN: the README allows
+    # "required scripts or equivalent commands", so a missing script name needs a human look).
     fail, warn = [], []
     agent_ref = re.compile(r"\b([a-z0-9]+(?:-[a-z0-9]+)*-(?:engineer|responder|reviewer|agent|updater|migrator|implementer))\b")
     for c, target in REQUIRED_COMMANDS.items():
@@ -336,7 +337,7 @@ def scholarchain_content(repo, out):
             fail.append(f"{c}.md routes to {target}, but .claude/agents/{target}.md does not exist")
         fail += [f"{c}.md mentions agent '{ref}', which has no file"
                  for ref in agent_ref.findall(text) if ref not in repo.agents and ref != target]
-        warn += [f"{c}.md runs {s}, which doesn't exist yet"
+        warn += [f"{c}.md runs {s}, which doesn't exist"
                  for s in re.findall(r"\b(scripts/[\w./-]+\.sh)\b", text) if not repo.is_file(s)]
     out.add("R05", "Commands route to agents that exist (deploy, incident, experiment are named by the README)",
             "FAIL" if fail else ("WARN" if warn else "PASS"), sorted(set(fail)) + warn)
