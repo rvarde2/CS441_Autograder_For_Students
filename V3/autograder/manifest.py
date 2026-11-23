@@ -6,7 +6,9 @@ returned or printed (they can hold bucket names, account IDs, URLs).
 
 Safety: the file is written by the student. YAML "anchors/aliases" (&a / *a) let a few lines
 expand into gigabytes in a full parser ("billion laughs"). So:
-  - files over 200 KB are not parsed
+  - files with anchors/aliases are never given to a full parser (the built-in reader below never expands)
+  - size: up to 200 KB with anchors, up to 5 MB without (1.0.8: a student's 200+ KB manifest without
+    anchors was "not readable", a FAIL about the checker, not the student). Larger: CHECKER_LIMIT, a WARN.
   - PyYAML's safe_load is used only if it's installed AND the file has no anchors/aliases
   - otherwise a small built-in reader handles the two shapes the README's example implies:
         datasets:                 datasets:
@@ -17,15 +19,18 @@ expand into gigabytes in a full parser ("billion laughs"). So:
 import os
 import re
 
-MAX_BYTES = 200_000
+MAX_BYTES = 200_000            # with anchors/aliases
+MAX_PLAIN = 5_000_000          # without: nothing can expand
 ANCHOR = re.compile(r"(^|[\s\[{,:-])[&*][A-Za-z0-9_-]")
+CHECKER_LIMIT = "too large for the checker to read"   # callers report this as a WARN, never a FAIL
 
 
 def read_manifest(text):
     """-> (datasets {name: [fields]}, has_dblp: bool, reader: str, error: str|None)"""
-    if len(text.encode()) > MAX_BYTES:
-        return {}, False, "none", f"larger than {MAX_BYTES // 1000} KB; not parsed"
-    use_yaml = not ANCHOR.search(text) and not os.environ.get("SELFCHECK_NO_YAML")
+    size, anchors = len(text.encode()), bool(ANCHOR.search(text))
+    if size > (MAX_BYTES if anchors else MAX_PLAIN):
+        return {}, False, "none", f"{CHECKER_LIMIT} ({size // 1000} KB{', with YAML anchors' if anchors else ''}); not parsed"
+    use_yaml = not anchors and not os.environ.get("SELFCHECK_NO_YAML")
     if use_yaml:
         try:
             import yaml

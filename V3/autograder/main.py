@@ -25,7 +25,7 @@ from .registry import run_all
 from .repo import Repo
 
 ICON = {"PASS": "ok  ", "FAIL": "FAIL", "WARN": "warn", "INFO": "info"}
-CSV_COLUMNS = ["student", "repo", "version", "run_date", "current_phase", "check_id", "title", "status",
+CSV_COLUMNS = ["student", "repo", "commit", "version", "run_date", "current_phase", "check_id", "title", "status",
                "due_phase", "details", "observed"]
 STUDENT_ID = re.compile(r"[A-Za-z0-9._-]{1,64}")
 RUN_DATE = datetime.datetime.now(datetime.timezone.utc).date().isoformat()   # day only, UTC
@@ -39,7 +39,7 @@ def safe_cell(value):
     return "'" + v if v[:1] in ("=", "+", "-", "@", "\t", "\r") else v
 
 
-def write_csv(path, student, repo_name, current, results):
+def write_csv(path, student, repo_name, current, results, commit=""):
     """One row per check; the student/run columns repeat on every row so the file can be
     filtered in a spreadsheet and merged across students without extra context.
     Several detail lines go into one cell, separated by ' | '."""
@@ -47,7 +47,7 @@ def write_csv(path, student, repo_name, current, results):
         w = csv.writer(f)
         w.writerow(CSV_COLUMNS)
         for r in results:
-            w.writerow([safe_cell(x) for x in (student, repo_name, VERSION, RUN_DATE,
+            w.writerow([safe_cell(x) for x in (student, repo_name, commit, VERSION, RUN_DATE,
                                                "" if current is None else current,
                                                r["id"], r["title"], r["status"], r["due_phase"],
                                                " | ".join(r["details"]),
@@ -115,7 +115,8 @@ def main(argv=None):
             "ownership_source": repo.ownership["source"] if repo.ownership["rows"] else None,
             "results": results}, indent=2))
     if args.csv:
-        write_csv(args.csv, args.student, root.name, current, results)
+        # the commit, so V1 rows can be matched with V2/V3 rows of the same commit (1.0.8)
+        write_csv(args.csv, args.student, root.name, current, results, (repo.git("rev-parse", "HEAD") or "").strip())
 
     print(f"ScholarChain self-check v{VERSION}   repo: {root}")
     print("current phase: " + (f"{current} (highest docs/agent-runs/phase-NN)" if current is not None

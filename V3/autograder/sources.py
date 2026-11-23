@@ -11,6 +11,9 @@ COMMENT = {".scala": "//", ".java": "//", ".sbt": "//", ".py": "#", ".sh": "#", 
 TEST_FILE = re.compile(r"(^|/)(src/test|tests?)/|Test\w*\.(scala|java)$|Suite\.scala$|_test\.py$|(^|/)test_\w+\.py$")
 
 
+EVIDENCE = "docs/agent-runs/"
+
+
 def code_lines(repo, exts, skip_tests=False, under=None):
     """Yield (path, line number, line) for non-comment lines of tracked files with these extensions.
     under: only paths starting with this folder. Block comments (/* ... */) are skipped too."""
@@ -18,6 +21,8 @@ def code_lines(repo, exts, skip_tests=False, under=None):
         ext = "." + t.rsplit(".", 1)[-1] if "." in t else ""
         if ext not in exts or (skip_tests and TEST_FILE.search(t)) or (under and not t.startswith(under)):
             continue
+        if t.startswith(EVIDENCE):   # code saved as phase EVIDENCE is not the project's code (1.0.8: A01 flagged
+            continue                 # a .java helper under docs/agent-runs/phase-06/evidence/)
         marker, in_block = COMMENT.get(ext, "#"), False
         for i, line in enumerate((repo.read(t) or "").splitlines(), 1):
             s = line.strip()

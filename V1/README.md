@@ -28,6 +28,15 @@ Results are printed and saved in `./selfcheck-results/` (always outside your rep
 - `selfcheck-results.json`: the same results plus an index of where your files are, for tools.
   **Keep it on your computer; don't send it.** Only the CSV is ever shared.
 
+## What's new in 1.0.8
+
+- **A01, H01, V01:** code saved as evidence under `docs/agent-runs/` is no longer treated as your project's code.
+- **M01/M02:** manifests over 200 KB are read (up to 5 MB, when they have no YAML anchors). A manifest the
+  checker can't read safely is a **warn** about the checker, not a FAIL.
+- **CSV:** a `commit` column, so results can be matched with the V2/V3 results of the same commit.
+- **V2 2.3.5 / V3 3.0.5:** SPARK-11 is no longer sent to a human just because V1 found some `.collect()`
+  call (almost every project collects a small result; the judge already weighs those calls). Verdicts are unchanged.
+
 ## What's new in 1.0.7
 
 - **E03/E04, a phase's commits:** work committed as "wip" or "fix tests" between two gates now belongs to

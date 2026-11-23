@@ -1,6 +1,6 @@
 # CS441 ScholarChain Autograder: V1 design
 
-Version 1.0.7. How the self-check works and exactly how each check decides, for students and
+Version 1.0.8. How the self-check works and exactly how each check decides, for students and
 course staff. How to run it is in `HOW_TO_RUN.md`; what changed in each version is in `README.md`.
 It checks a student's OWN project repository (their implementation of the ScholarChain
 assignment), not the ScholarChain assignment repository.
@@ -171,7 +171,8 @@ files for one rubric category without searching. Students share only the CSV; th
 therefore the index) stays on their machine.
 
 CSV (`--csv`, saved by `selfcheck.sh` as `selfcheck-<student>.csv`): one row per check, columns
-`student, repo, version, current_phase, check_id, title, status, due_phase, details` (detail lines
+`student, repo, commit, version, run_date, current_phase, check_id, title, status, due_phase, details, observed`
+(`commit` since 1.0.8, so V1 rows can be matched with V2/V3 rows of the same commit; detail lines
 joined by ` | `). Student/run columns repeat on every row so the file filters and merges easily.
 `--student` accepts letters, digits, `.`, `_`, `-` only.
 
@@ -248,7 +249,7 @@ Levels: F = FAIL when broken, W = WARN, I = INFO. "Source" quotes or names the S
 | ID | Due | Lvl | Checks | README source |
 |---|---|---|---|---|
 | B01 | 2 | F/W | `build.sbt`, `project/build.properties`, `project/plugins.sbt` | Phase 2 work order |
-| M01 | 3 | F/W | `datasets/dataset-manifest.yaml` exists, readable, has dataset entries | "Create datasets/dataset-manifest.yaml ..." |
+| M01 | 3 | F/W | `datasets/dataset-manifest.yaml` exists, readable, has dataset entries (too large for the checker to read safely = W, see 8.6) | "Create datasets/dataset-manifest.yaml ..." |
 | M02 | 3 | F | DBLP plus at least 3 other datasets in the manifest | Baseline submission |
 | M03 | 3 | F/W | `datasets/scripts`, `samples`, `schemas` have files (a `.gitkeep` alone doesn't count) | Phase 3 work order |
 | M04 | 3 | F | the 20 named Scala records are defined (a definition, not a comment) | "Create immutable Scala domain records for WorkRecord, ..." |
@@ -265,7 +266,8 @@ Levels: F = FAIL when broken, W = WARN, I = INFO. "Source" quotes or names the S
 | U01 | 13 | W | every `scripts/*.sh` sets -e, -u and pipefail (short or long form, anywhere in the file), itself or through a sourced library; libraries that other scripts source are exempt | Phase 13: "Bash strict mode or an equivalently strict scripting language configuration" |
 
 These show that something EXISTS or APPEARS, with file and line. Whether the Hadoop job is right,
-or a `collect()` is harmful, is for a human or the AI step. Comment lines never count.
+or a `collect()` is harmful, is for a human or the AI step. Comment lines never count, and neither does
+code saved as phase evidence under `docs/agent-runs/` (1.0.8): it is a record, not the project's code.
 
 ### Observations (always `info`)
 
@@ -354,7 +356,8 @@ first (1.0.4):
 ### 8.6 The dataset manifest reader
 
 The manifest is your YAML, and YAML anchors/aliases can make a parser expand a small file into
-gigabytes. So: files over 200 KB aren't parsed; PyYAML `safe_load` is used only when installed and
+gigabytes. So: files with anchors/aliases over 200 KB, and any file over 5 MB, aren't parsed (a WARN: the
+checker's limit, not the student's fault; until 1.0.7 every file over 200 KB was a FAIL); PyYAML `safe_load` is used only when installed and
 the file has no anchors/aliases; otherwise a small built-in reader reads the `datasets:` block
 (mapping or list form) without expanding anything. Both give the same result on both forms (tested).
 Only dataset names and field names are kept; values are read only to recognise DBLP.

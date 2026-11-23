@@ -16,7 +16,7 @@ import json
 import re
 from pathlib import Path, PurePosixPath
 
-from ..manifest import read_manifest
+from ..manifest import CHECKER_LIMIT, read_manifest
 from ..registry import check_group
 
 TABLE = json.loads((Path(__file__).resolve().parent.parent / "data" / "phase_requirements.json").read_text())
@@ -117,7 +117,7 @@ def k_manifest(repo, row):
     sets, _, reader, err = read_manifest(repo.read(path) or "")
     msgs = [] if st == "here" else [f"found at {path} instead of {row['path']}"]
     if err:
-        return "FAIL", msgs + [f"{path}: {err} (reader: {reader})"]
+        return ("WARN" if err.startswith(CHECKER_LIMIT) else "FAIL"), msgs + [f"{path}: {err} (reader: {reader})"]
     if not sets:
         return "FAIL", msgs + [f"{path}: 'datasets:' has no entries (reader: {reader})"]
     return ("WARN" if msgs else "PASS"), msgs + [f"{len(sets)} dataset entries (reader: {reader})"]
@@ -129,7 +129,8 @@ def k_manifest_datasets(repo, row):
         return "FAIL", ["no manifest (see M01)"]
     sets, has_dblp, reader, err = read_manifest(repo.read(path) or "")
     if err:
-        return "FAIL", [f"manifest not readable (see M01)"]
+        return (("WARN", ["the checker could not read the manifest (see M01): a human checks the datasets"])
+                if err.startswith(CHECKER_LIMIT) else ("FAIL", ["manifest not readable (see M01)"]))
     problems = []
     if not has_dblp:
         problems.append("no DBLP entry")

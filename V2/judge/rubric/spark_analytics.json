@@ -115,17 +115,6 @@
   },
   "v1_links": [
     {
-      "item": "SPARK-11",
-      "if_verdict": [
-        "met"
-      ],
-      "check": "A01",
-      "if_status": [
-        "WARN"
-      ],
-      "note": "V1 A01 found .collect()-style calls in Spark code; check they only touch small summaries"
-    },
-    {
       "item": "SPARK-10",
       "if_verdict": [
         "met",

@@ -11,7 +11,7 @@ containing "spark", or files that import org.apache.spark / pyspark.
 import re
 
 from ..registry import check_group
-from ..sources import code_lines
+from ..sources import EVIDENCE, code_lines
 
 SRC = (".scala", ".java", ".py")
 # What counts as bringing data to ONE machine (1.0.2):
@@ -28,7 +28,7 @@ SPARK = re.compile(r"org\.apache\.spark|pyspark")
 @check_group(phase=6)
 def spark(repo, out):
     spark_files = {t for t, _, line in code_lines(repo, SRC, skip_tests=True) if SPARK.search(line)}
-    spark_files |= {t for t in repo.tracked if "spark" in t.lower() and t.endswith(SRC)}
+    spark_files |= {t for t in repo.tracked if "spark" in t.lower() and t.endswith(SRC) and not t.startswith(EVIDENCE)}
     hits = [f"{t}:{i}: .{m.group(1) or m.group(2)}" for t, i, line in code_lines(repo, SRC, skip_tests=True)
             if t in spark_files and (m := COLLECT.search(line))]
     out.record("spark", value={"files": sorted(spark_files), "collect_calls": [h.rsplit(": .", 1)[0] for h in hits]})

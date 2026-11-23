@@ -167,17 +167,6 @@
       "note": "V1 F03 found a reviewer agent with write tools"
     },
     {
-      "item": "FACTORY-04",
-      "if_verdict": [
-        "met"
-      ],
-      "check": "O02",
-      "if_status": [
-        "FAIL"
-      ],
-      "note": "V1 O02 found overlapping writers"
-    },
-    {
       "item": "FACTORY-05",
       "if_verdict": [
         "met"
