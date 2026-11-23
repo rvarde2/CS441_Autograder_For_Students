@@ -1,0 +1,326 @@
+{
+  "_about": "V4 scoring weights (instructor-only, never shipped). Turns V2/V3 verdicts and V1 facts into POINTS GAINED and POINTS DEDUCTED, kept as two separate numbers, per phase, each with a reason. Category budgets are the README's (commit a139f4a) and are not ours to change; inside a category each item gets a TIER, and code scales the tiers to the budget. An overlapping failure (an item and a deduction about the same thing) is counted ONCE (user decision Nov 23): such items are tier zero or the deduction is not applied, as noted per line. cannot_tell or flagged verdicts are never scored automatically: they are listed as pending human with the points at stake. Every grade sheet prints this file's sha.",
+  "weights_version": 1,
+  "tier_units": {
+    "core": 3,
+    "standard": 2,
+    "minor": 1,
+    "zero": 0
+  },
+  "tier_rule": "core = what the README's full-credit sentence leads with, or what the rest of the category depends on; standard = the other things that sentence names; minor = work-order detail the sentence does not name; zero = its failure is already a listed deduction (counted once there).",
+  "verdict_fraction": {
+    "met": 1.0,
+    "partial": 0.5,
+    "missing": 0.0
+  },
+  "partial_rule": "partial = half of the item's points (decision Nov 23, option A; option B, a judge-reported share of sub-requirements, may replace it per item after measurement)",
+  "severity_fraction": {
+    "none": 0.0,
+    "minor": 0.25,
+    "partial": 0.5,
+    "full": 1.0
+  },
+  "categories": {
+    "dataset_engineering": {
+      "points": 1.0,
+      "phase": 3,
+      "items": {
+        "DATA-01": {
+          "tier": "core",
+          "why": "full credit leads with 'DBLP plus at least three real linked datasets'"
+        },
+        "DATA-02": {
+          "tier": "standard",
+          "why": "full credit: 'manifest'"
+        },
+        "DATA-03": {
+          "tier": "standard",
+          "why": "full credit: 'licenses'"
+        },
+        "DATA-04": {
+          "tier": "standard",
+          "why": "full credit: 'checksums'"
+        },
+        "DATA-05": {
+          "tier": "standard",
+          "why": "full credit: 'schemas'"
+        },
+        "DATA-06": {
+          "tier": "standard",
+          "why": "full credit: 'bounded scripts'"
+        },
+        "DATA-07": {
+          "tier": "minor",
+          "why": "samples: Phase 3 work order, not in the full-credit sentence"
+        },
+        "DATA-08": {
+          "tier": "minor",
+          "why": "manifest validation: Phase 3 work order, not in the full-credit sentence"
+        }
+      },
+      "deductions": {
+        "DATASETS-FEWER-THAN-THREE": {
+          "apply": true,
+          "why": "about datasets actually USED (reader code); DATA-01 is about datasets LISTED: different failures, no overlap"
+        }
+      }
+    },
+    "hadoop_mapreduce": {
+      "points": 2.0,
+      "phase": 4,
+      "items": {
+        "HADOOP-01": {
+          "tier": "zero",
+          "why": "no real MapReduce jobs = the deduction HADOOP-REPLACED (up to 3): counted once, there"
+        },
+        "HADOOP-02": {
+          "tier": "core",
+          "why": "full credit leads with 'correct distributed parsing'; every later job reads its output"
+        },
+        "HADOOP-03": {
+          "tier": "standard",
+          "why": "full credit: 'normalization'"
+        },
+        "HADOOP-04": {
+          "tier": "standard",
+          "why": "full credit: 'researcher/work blocking'"
+        },
+        "HADOOP-05": {
+          "tier": "standard",
+          "why": "full credit: 'author-team extraction'"
+        },
+        "HADOOP-06": {
+          "tier": "core",
+          "why": "full credit: 'coauthor-pair preparation'; the Spark graph is built from these pairs. Wrong or dropped pairs for large teams are the deduction HADOOP-PAIRS-WRONG; this item scores everything else"
+        },
+        "HADOOP-07": {
+          "tier": "standard",
+          "why": "full credit: 'counters'"
+        },
+        "HADOOP-08": {
+          "tier": "standard",
+          "why": "full credit: 'rejects'"
+        },
+        "HADOOP-09": {
+          "tier": "minor",
+          "why": "partitioner, idempotent paths, compression, determinism: Phase 4 work-order detail"
+        },
+        "HADOOP-10": {
+          "tier": "standard",
+          "why": "full credit: 'tests'"
+        },
+        "HADOOP-11": {
+          "tier": "minor",
+          "why": "job contracts documented: Phase 4 work-order detail"
+        },
+        "HADOOP-12": {
+          "tier": "standard",
+          "why": "full credit: 'EMR run'. The instructor confirms the cloud run (a repository alone cannot prove it ran on EMR)"
+        }
+      },
+      "deductions": {
+        "HADOOP-REPLACED": {
+          "apply": true,
+          "why": "carries the 'no real MapReduce' failure (HADOOP-01 is zero)"
+        },
+        "HADOOP-PAIRS-WRONG": {
+          "apply": true,
+          "why": "wrong/dropped large-team pairs; HADOOP-06 does not score this part"
+        },
+        "HADOOP-MUTABLE-STATE": {
+          "apply": true,
+          "why": "no item covers it"
+        }
+      }
+    },
+    "spark_analytics": {
+      "points": 3.0,
+      "phase": 6,
+      "items": {
+        "SPARK-01": {
+          "tier": "core",
+          "why": "full credit leads with 'correct temporal weighted graph'; every metric is computed from it"
+        },
+        "SPARK-02": {
+          "tier": "standard",
+          "why": "full credit: 'distinct and weighted degree'"
+        },
+        "SPARK-03": {
+          "tier": "standard",
+          "why": "full credit: 'team-size metrics'"
+        },
+        "SPARK-04": {
+          "tier": "standard",
+          "why": "full credit: 'components'"
+        },
+        "SPARK-05": {
+          "tier": "standard",
+          "why": "full credit: 'paths'"
+        },
+        "SPARK-06": {
+          "tier": "standard",
+          "why": "full credit: 'communities'"
+        },
+        "SPARK-07": {
+          "tier": "standard",
+          "why": "full credit: 'bridge measure'"
+        },
+        "SPARK-08": {
+          "tier": "standard",
+          "why": "full credit: 'k-core or equivalent'"
+        },
+        "SPARK-09": {
+          "tier": "core",
+          "why": "full credit: 'temporal analysis'; README: 'All metrics must be time-aware'"
+        },
+        "SPARK-10": {
+          "tier": "standard",
+          "why": "full credit: 'tests'"
+        },
+        "SPARK-11": {
+          "tier": "zero",
+          "why": "collecting the graph to one process = the deduction SPARK-ABSENT-OR-COLLECT (up to 3): counted once, there"
+        }
+      },
+      "deductions": {
+        "SPARK-ABSENT-OR-COLLECT": {
+          "apply": true,
+          "why": "carries distributed execution (SPARK-11 is zero)"
+        },
+        "SPARK-METRICS-MISSING": {
+          "apply": false,
+          "why": "counted once: SPARK-02..08 each lose their own points for a missing metric (together about 1.9 of the deduction's 2)"
+        },
+        "SPARK-MUTABLE-STATE": {
+          "apply": true,
+          "why": "no item covers it"
+        }
+      }
+    },
+    "factory_reproducibility": {
+      "points": 3.0,
+      "phase": 1,
+      "items": {
+        "FACTORY-01": {
+          "tier": "core",
+          "why": "full credit leads with 'correct orchestrator and subagent model'"
+        },
+        "FACTORY-02": {
+          "tier": "standard",
+          "why": "role files: the subagent model's content"
+        },
+        "FACTORY-03": {
+          "tier": "standard",
+          "why": "authority separation (required roles). The reviewer/test-agent separation is judged in the deduction FACTORY-NO-INDEPENDENT-REVIEW, not here (each problem is counted in one place)"
+        },
+        "FACTORY-04": {
+          "tier": "standard",
+          "why": "full credit: 'one-writer ownership'. Uncontrolled overlap is judged in the deduction FACTORY-OVERLAP-UNCONTROLLED, not here"
+        },
+        "FACTORY-05": {
+          "tier": "core",
+          "why": "full credit: 'hooks, permissions'; the safety floor every phase relies on"
+        },
+        "FACTORY-06": {
+          "tier": "standard",
+          "why": "full credit: 'permissions' (MCP policy, commands)"
+        },
+        "FACTORY-07": {
+          "tier": "standard",
+          "why": "full credit: 'reports, human gates'"
+        },
+        "FACTORY-08": {
+          "tier": "standard",
+          "why": "full credit: 'repair loops, human gates' (ratification)"
+        },
+        "FACTORY-09": {
+          "tier": "minor",
+          "why": "agent catalog: README section 'Agent submission and reproducibility', not in the full-credit sentence",
+          "phase": 17
+        },
+        "FACTORY-10": {
+          "tier": "zero",
+          "why": "replay instructions missing/insufficient = the deduction FACTORY-REPLAY-INSUFFICIENT (up to 2): counted once, there",
+          "phase": 17
+        }
+      },
+      "deductions": {
+        "FACTORY-NO-INDEPENDENT-REVIEW": {
+          "apply": true,
+          "why": "judged only here (FACTORY-03 does not score it)"
+        },
+        "FACTORY-AGENTS-NOT-SUBMITTED": {
+          "apply": true,
+          "why": "full credit: 'submission of every agent'; no item covers it"
+        },
+        "FACTORY-REPLAY-INSUFFICIENT": {
+          "apply": true,
+          "why": "carries replay instructions (FACTORY-10 is zero)",
+          "phase": 17
+        },
+        "FACTORY-OVERLAP-UNCONTROLLED": {
+          "apply": true,
+          "why": "judged only here (FACTORY-04 does not score it)"
+        }
+      }
+    }
+  },
+  "v1_deductions": {
+    "_about": "Deductions decided from V1's deterministic facts (no AI). V1 checks give NO gain points: they are structure and process facts that feed these deductions or serve as evidence for a human.",
+    "SECRETS": {
+      "max": 4,
+      "checks": [
+        "K01",
+        "K02",
+        "K03"
+      ],
+      "phase": "of the commit that added it",
+      "rule": "a key-shaped value in project files or history -> proposed -4, which the instructor confirms (the value must be a real secret); a value only in tests or phase evidence -> the instructor looks",
+      "why": "README: 'Secrets committed or displayed: up to 4 points lost'. Obvious placeholders (documentation examples, FAKE/TEST values) are ignored"
+    },
+    "TESTS": {
+      "max": 2,
+      "checks": [
+        "T01"
+      ],
+      "phase": 11,
+      "rule": "max x (25 - counted) / 25 when fewer than 25 meaningful tests, else 0",
+      "why": "README: 'Fewer than 25 meaningful ... tests: up to 2 points lost'; scaled by how far short"
+    },
+    "HARDCODED": {
+      "max": 1,
+      "checks": [
+        "V01"
+      ],
+      "phase": 4,
+      "rule": "found -> the instructor decides (a value with a configuration rationale is allowed)",
+      "why": "README: 'Hardcoded buckets, endpoints, account IDs, thresholds, or model IDs without configuration rationale: up to 1 point'"
+    },
+    "CLAIMS_NOT_DONE": {
+      "max": 2,
+      "checks": [
+        "E03"
+      ],
+      "phase": "of the report",
+      "rule": "a claimed file that no commit supports -> the instructor decides (never automatic: academic-integrity implications)",
+      "why": "README: 'Agent reports claim commands or tests that were not actually run: up to 2 points lost and possible academic-integrity review'"
+    },
+    "TASKFORGE_FORK": {
+      "max": "grade may be zero",
+      "checks": [
+        "C02",
+        "C03"
+      ],
+      "phase": 1,
+      "rule": "control plane mostly copied from the tutorial -> the instructor decides",
+      "why": "README: 'Only a generic agent tutorial fork with TaskForge renamed ...: zero'"
+    }
+  },
+  "decisions": {
+    "_date": "2026-11-23 (user accepted the recommendations)",
+    "absent_category": "A category that is completely absent (no Spark at all; Hadoop replaced by a local loop) earns none of its points AND takes its README deduction: the deduction is for missing a required component, on top of not earning its points.",
+    "secrets": "A possible secret is never deducted automatically: the instructor confirms the value is real first.",
+    "tests": "Fewer than 25 meaningful tests: the deduction grows with how far short you are, 2 x (25 - counted) / 25.",
+    "flags": "If the automatic verifier flags a verdict (for example: the cited code is not called by the job, or it contradicts a deterministic check), the verdict still counts and the instructor takes a look. Only a verdict the judge could not decide (cannot_tell) is left to the instructor entirely."
+  }
+}

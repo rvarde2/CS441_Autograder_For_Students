@@ -1,0 +1,177 @@
+{
+  "_about": "Rubric data for ONE category (see spark_analytics.json). Approved Nov 17. Left OUT on purpose: 'DBLP not actually processed' (run evidence -> human checklist) and 'Fewer than three actual enrichment datasets' (datasets category), so HADOOP-03 does not double count. Nov 18: HADOOP-04 and HADOOP-09 definitions tightened after the held-out run showed identical code judged met (dev1) and partial (h2); user approved (option A). Nov 18 (round 2): HADOOP-05 (what identifies an author mention) and HADOOP-08 (skipped bad-record kinds = partial) defined; user approved. Nov 18 (round 3): HADOOP-PAIRS-WRONG scope clarified (counting alone = HADOOP-06); user approved.",
+  "readme_commit": "a139f4a",
+  "category_id": "hadoop_mapreduce",
+  "category_name": "Hadoop MapReduce",
+  "rubric_points": 2.0,
+  "readme_full_credit": "Correct distributed parsing, normalization, researcher/work blocking, author-team extraction, coauthor-pair preparation, counters, rejects, tests, and EMR run",
+  "items": [
+    {
+      "id": "HADOOP-01",
+      "text": "Real MapReduce jobs. met: at least two jobs, each with a driver that configures Mapper and Reducer classes (or Hadoop Streaming with a job configuration). partial: exactly one such job. missing: no real MapReduce job.",
+      "source": "Phase 4 gate: 'At least two real MapReduce jobs execute, not local collection operations disguised as MapReduce'"
+    },
+    {
+      "id": "HADOOP-02",
+      "text": "DBLP parsing. met: an XML input format or record reader that keeps each top-level DBLP record whole across input splits, and extraction of key, title, ordered authors, year, venue fields, ee links, URLs and record type into WorkRecord/AuthorMention records. partial: records parsed but the reader assumes byte splits align with records, or only some fields are extracted.",
+      "source": "Phase 4 work order job 1; 'Detailed Hadoop requirements': must not assume arbitrary byte splits align with publication elements"
+    },
+    {
+      "id": "HADOOP-03",
+      "text": "External source normalization. met: one normalizer per selected dataset, mapping into shared contracts while keeping source-specific IDs, and normalizing identifiers (DOI, arXiv, ORCID, OpenAlex, Semantic Scholar, ...) with duplicate or conflict counting. partial: only some selected datasets, or source IDs lost.",
+      "source": "Phase 4 work order jobs 2 and 3"
+    },
+    {
+      "id": "HADOOP-04",
+      "text": "Bounded blocking and match candidates. met: blocking keys with a maximum block size, fallback keys, an oversize-group policy and an oversize counter, producing MatchCandidate records with deterministic match features, AND the size bound takes effect before a whole oversize group reaches a single reducer (for example a pre-pass that counts block sizes and re-keys oversize groups in the mapper, composite or salted keys, or sampling). partial: blocking without a size bound or oversize policy; or a bound applied only after one reducer has received and loaded the whole oversize group; or no MatchCandidate output. ('Simply allocating a larger reducer is not a strategy.')",
+      "source": "Phase 4 work order jobs 4 and 5; 'Detailed Hadoop requirements' on giant reducer groups"
+    },
+    {
+      "id": "HADOOP-05",
+      "text": "Publication-team extraction: one team record per retained work with ordered author mentions, and author-paper records keyed by author mention and work ID. An author mention is identified by an author-mention ID or by the pair (work ID, author position); a record keyed by the author's name alone does not identify the mention.",
+      "source": "Phase 4 work order job 6"
+    },
+    {
+      "id": "HADOOP-06",
+      "text": "Coauthor-pair preparation. met: unordered pairs, n*(n-1)/2 per paper with n authors, no self-pairs, every pair keeping work ID, year, author position and source provenance, and unusually large teams counted and reported. partial: pairs produced but missing provenance fields or large-team counting.",
+      "source": "Phase 4 work order job 6; gate: 'Pair generation passes hand-checkable papers with 1, 2, 3, and larger author lists'"
+    },
+    {
+      "id": "HADOOP-07",
+      "text": "Hadoop counters. met: counters for at least 6 of the 10 listed kinds (input, accepted, rejected, duplicate, conflict, oversize block, oversize author team, emitted pair, missing key, schema failure). partial: 1 to 5 of them. missing: no counters.",
+      "source": "Phase 4 work order 'Required operational behavior'"
+    },
+    {
+      "id": "HADOOP-08",
+      "text": "Reject outputs. met: malformed and unsupported records written to versioned reject outputs. partial: rejects only counted or logged, or outputs not versioned, or some kinds of bad records (for example unsupported record types) are skipped instead of written to the reject outputs.",
+      "source": "Phase 4 work order job 2; gate: 'Counters and reject outputs are visible'"
+    },
+    {
+      "id": "HADOOP-09",
+      "text": "Operational discipline: explicit partition strategy, idempotent output paths containing run ID and dataset snapshot, compressed intermediate outputs, deterministic outputs for deterministic inputs. Deterministic means the output does not depend on the order in which values reach a reducer or on task scheduling (for example values or pairs are sorted, a secondary sort is used, or pair IDs are put in a canonical order). met: all four. partial: some.",
+      "source": "Phase 4 work order 'Required operational behavior'"
+    },
+    {
+      "id": "HADOOP-10",
+      "text": "Hadoop tests. A test counts only if it asserts specific expected values. met: tests for the parser, pair generation with 1, 2, 3 and larger author lists, normalization, and key functions, plus at least one local or mini-cluster integration test of a representative job. partial: only some of these, or tests that only check that code runs. missing: no Hadoop tests.",
+      "source": "Phase 4 work order required tests and gate; 'Required test inventory': Hadoop mapper and reducer tests"
+    },
+    {
+      "id": "HADOOP-11",
+      "text": "Job contracts documented: for each job, input format, input/mapper-output/reducer key and value types, combiner and partitioner behavior, counters, reject conditions, expected reducers, S3 input and output prefixes, compression codec, idempotency rule and test fixture. met: most jobs with most of these. partial: some jobs or few fields. ('A diagram that says Hadoop processes DBLP is insufficient.')",
+      "source": "'Detailed Hadoop requirements': document every mapper and reducer contract"
+    },
+    {
+      "id": "HADOOP-12",
+      "text": "EMR run. met: a bounded EMR smoke-run script and committed evidence of an EMR run (counters, logs or a run report). partial: script only, or evidence without a script. Run evidence cannot be confirmed from the repository alone, so describe what you found.",
+      "source": "Evaluation rubric 'EMR run'; Phase 4 work order: 'A bounded EMR smoke-run script owned by the infrastructure workflow'"
+    }
+  ],
+  "deductions": [
+    {
+      "id": "HADOOP-REPLACED",
+      "max_points": 3,
+      "quote": "Hadoop requirement replaced by a local loop, Spark operation, or managed import: up to 3 points lost."
+    },
+    {
+      "id": "HADOOP-PAIRS-WRONG",
+      "max_points": 2,
+      "quote": "Coauthor-pair preparation is missing or incorrect for large author teams: up to 2 points lost. (Judge here: applies when pairs for large teams are wrong, dropped or not produced. Missing large-team counting or reporting alone is judged in HADOOP-06, not here.)"
+    },
+    {
+      "id": "HADOOP-MUTABLE-STATE",
+      "max_points": 1,
+      "quote": "Unjustified mutable shared state in distributed or concurrent code: up to 1 point lost. (Judge Hadoop code only here; Spark code is judged in its own category.)"
+    }
+  ],
+  "evidence": {
+    "_about": "See pack.py.",
+    "sources": [
+      {
+        "key": [
+          "hadoop",
+          "hadoop_files"
+        ]
+      },
+      {
+        "tracked_contains": "hadoop",
+        "suffixes": [
+          ".scala",
+          ".java",
+          ".py",
+          ".sh"
+        ]
+      },
+      {
+        "tracked_contains": "streaming",
+        "suffixes": [
+          ".sh"
+        ]
+      },
+      {
+        "key": [
+          "tests",
+          "files"
+        ],
+        "contains": "hadoop"
+      },
+      {
+        "key": [
+          "scripts",
+          "all"
+        ],
+        "contains": "emr"
+      },
+      {
+        "key": [
+          "areas",
+          "docs"
+        ]
+      },
+      {
+        "key": [
+          "areas",
+          "reports"
+        ]
+      }
+    ],
+    "phases": [
+      4
+    ],
+    "max_files": 60
+  },
+  "v1_links": [
+    {
+      "item": "HADOOP-01",
+      "if_verdict": [
+        "met",
+        "partial"
+      ],
+      "index_empty": {
+        "key": [
+          "hadoop",
+          "mappers"
+        ]
+      },
+      "note": "V1 H01 found no class extending Mapper"
+    },
+    {
+      "item": "HADOOP-10",
+      "if_verdict": [
+        "met",
+        "partial"
+      ],
+      "index_empty": {
+        "key": [
+          "tests",
+          "files"
+        ],
+        "contains": "hadoop"
+      },
+      "note": "V1's index lists no Hadoop test files"
+    }
+  ],
+  "always_human": [
+    "HADOOP-12"
+  ]
+}

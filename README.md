@@ -1,40 +1,67 @@
-# CS441 ScholarChain self-check
+# CS441 ScholarChain autograder
 
-An **advisory** checker you run on **your own project repository** (your implementation of the
-ScholarChain assignment, not the assignment repository). It is not your grade.
+This repository holds the autograder used to grade the ScholarChain project. The instructor runs it on each
+submitted repository, at its submitted tag. The versions below are the ones used for grading, and you can run
+the same code on your own repository to see exactly what the grader sees.
 
-| Folder | Version | Status |
-|---|---|---|
-| [`V1/`](V1/) | 1.0.8 | current (what's new: [`V1/README.md`](V1/README.md#whats-new-in-108): large manifests, evidence code, commit in the CSV; 1.0.7: phase commits and E03 claims; 1.0.6: more fixes from your notes; 1.0.5: every check applies at every phase; 1.0.4: fewer false FAILs) |
-| [`V2/`](V2/) | 2.3.5 | (2.3.5: includes V1 1.0.8, fewer needless human flags; 2.3.4: includes V1 1.0.7; 2.3.3: includes V1 1.0.6, pre-scan no longer flags "passed 10/10"; 2.3.2: every category is judged at every phase; judge unchanged). AI judge per rubric category (advisory; uses **your** Claude Code usage). Start with [`V2/HOW_TO_RUN.md`](V2/HOW_TO_RUN.md), then [`V2/README.md`](V2/README.md); what is judged: [`V2/RUBRIC.md`](V2/RUBRIC.md). Categories so far: dataset engineering, Hadoop MapReduce, Spark analytics. |
-| [`V3/`](V3/) | 3.0.5 | experimental (3.0.5: includes V1 1.0.8; 3.0.4: includes V1 1.0.7; 3.0.3: the pre-scan fix; judge unchanged): AI judge for the agentic factory (3.0 pts; advisory; uses your Claude or Antigravity usage). See [`V3/README.md`](V3/README.md) and [`V3/RUBRIC.md`](V3/RUBRIC.md). |
+**How points are given and taken: [`RUBRIC.md`](RUBRIC.md).** A step-by-step guide is in
+[`ScholarChain_Autograder_Student_Guide.pdf`](ScholarChain_Autograder_Student_Guide.pdf).
 
-## What each version does
+## How your project is graded
 
-| Version | What it checks | How | Cost | Run |
-|---|---|---|---|---|
-| **V1** | Structure and process of the whole project: control-plane files, agent frontmatter and tool fences, hooks, ownership map, phase reports vs git, secrets, copied tutorial files, tests, required paths | Deterministic static checks (no AI); reads files and git history, never runs your code | Free | `V1/selfcheck.sh` |
-| **V2** | Content of three rubric categories: dataset engineering (1.0 pt, from phase 3), Hadoop MapReduce (2.0, phase 4), Spark analytics (3.0, phase 6) | AI judge (Claude Code with Sonnet by default, or Antigravity); every verdict cites your files and is checked by code | Your AI usage, about $0.30-0.50 per full run with Sonnet | `V2/judge.sh` |
-| **V3** (experimental) | Content of the agentic factory category (3.0 pts): control model, agent files, separation of duties, ownership map, hooks, MCP and commands, phase records, repairs and ratification, agent catalog, reproduction instructions | Same AI judge as V2, plus V1's factory facts | Your AI usage, about $0.30-0.40 per run with Sonnet | `V3/judge.sh` |
+1. Your private repository is cloned at the **submitted tag**, and the commit is recorded.
+2. **V1** runs deterministic checks of structure and process: the agent control plane, phase evidence compared
+   with git history, secrets, copied tutorial files, tests, required files. It never runs your code.
+3. **V2** (datasets, Hadoop, Spark) and **V3** (agentic factory) use an AI judge (Claude Code) that only reads your
+   repository. Every verdict must cite your files with exact lines, and code checks every citation.
+4. **Scoring** ([`RUBRIC.md`](RUBRIC.md)) turns the results into **points gained**, **points deducted** and a
+   **score**, per phase and overall, with a reason on every row.
+5. The instructor reviews every row the autograder marks for a human (undecided verdicts, flagged verdicts,
+   possible secrets) before any points are final, and grades the parts the autograder does not cover.
 
-Recommended order: V1 first (free, catches structural problems), then V2 and V3. Every check and every
-category is applied whatever phase you have reached, exactly as in final grading (use V2's `--category`
-to judge only some categories). All three are advisory: your grade comes from the instructor's own runs on your submitted repository.
+The autograder scores **9.0 of the 20 points** (agentic factory 3.0, dataset engineering 1.0, Hadoop MapReduce
+2.0, Spark analytics 3.0) and the deductions listed in `RUBRIC.md`. The other **11.0 points** and the other
+deductions of the assignment README are graded by the instructor.
 
-**Start here:** [`V1/HOW_TO_RUN.md`](V1/HOW_TO_RUN.md) (step by step), then [`V1/README.md`](V1/README.md)
-(what every check means) and [`V1/DESIGN.md`](V1/DESIGN.md) (how each check decides).
+## What each folder does
+
+| Folder | Version | Checks | How |
+|---|---|---|---|
+| [`V1/`](V1/) | 1.0.8 | Structure and process of the whole project (about 60 checks) | Deterministic: reads files and git history, never runs anything. [`V1/README.md`](V1/README.md) lists every check; [`V1/DESIGN.md`](V1/DESIGN.md) explains how each one decides. |
+| [`V2/`](V2/) | 2.3.5 | Dataset engineering, Hadoop MapReduce, Spark analytics | AI judge, item by item ([`V2/RUBRIC.md`](V2/RUBRIC.md): what each item requires). |
+| [`V3/`](V3/) | 3.0.5 | Agentic factory and agent reproducibility | Same AI judge, plus V1's facts about your factory ([`V3/RUBRIC.md`](V3/RUBRIC.md)). |
+| [`V4/`](V4/) | 4.0.0 | Your score | Combines your latest V1/V2/V3 results with the grading weights: points gained, deducted and score per phase, with reasons ([`V4/README.md`](V4/README.md)). No AI, no cost. |
+| [`RUBRIC.md`](RUBRIC.md) | scoring 4.0.0 | Weights and deductions | How verdicts and checks become points (what V4 uses). |
+
+Every check and every category applies whatever phase your repository has reached, the same as in grading.
+
+## Safety
+
+Nothing in your repository is executed. Your `CLAUDE.md`, hooks, settings and MCP servers are not loaded
+(`--restricted --strict-mcp-config`), and the AI can only read files inside your repository (Read, Glob, Grep).
+Text in your repository that addresses the grader is reported, never obeyed.
+
+## Running it yourself (optional)
+
+You don't need to run anything or send anything. If you want to see what the grader sees:
 
 ```bash
 git clone https://github.com/rvarde2/CS441_Autograder_For_Students.git
 cd CS441_Autograder_For_Students/V1
-./selfcheck.sh --student <your NetID> ~/path/to/your-scholarchain-repo
+./selfcheck.sh --student <your NetID> ~/path/to/your-scholarchain-repo       # free, no AI
+
+cd ../V2 && ./judge.sh --student <your NetID> ~/path/to/your-repo --dry-run  # free preview
+cd ../V2 && ./judge.sh --student <your NetID> ~/path/to/your-repo            # uses YOUR Claude Code usage
+cd ../V3 && ./judge.sh --student <your NetID> ~/path/to/your-repo            # uses YOUR Claude Code usage
+cd ../V4 && ./score.sh --student <your NetID>                                  # your score: free, no AI
 ```
 
-Results are saved in `V1/selfcheck-results/`. **Share only the `.csv` file** when your instructor
-asks; keep the `.json` on your computer.
+Only committed files are checked, so commit before running. V4 scores your latest V1, V2 and V3 runs, so run
+all three on the same commit first. Results stay on your computer. Step-by-step
+instructions: [`V1/HOW_TO_RUN.md`](V1/HOW_TO_RUN.md) and [`V2/HOW_TO_RUN.md`](V2/HOW_TO_RUN.md). A run of your
+own can differ slightly from the grading run: the AI judge can vary between runs, and the grading run is made on
+your submitted tag.
 
-V1 and V2 complement each other: V1 checks structure and process (free, no AI); V2 judges content with
-Claude. Run V1 first.
-
-New versions are added as new folders (`V2/`, ...); `git pull` gets them. Older versions stay
-unchanged, so earlier results can always be traced to the code that produced them.
+The READMEs inside `V1/`, `V2/` and `V3/` were written when these folders were self-check tools, so they call
+results "advisory" and mention sharing CSV files. For grading, this page and [`RUBRIC.md`](RUBRIC.md) apply, and
+nothing needs to be shared.

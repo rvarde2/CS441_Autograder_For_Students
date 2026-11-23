@@ -1,0 +1,117 @@
+{
+  "_about": "Rubric data for ONE category (see spark_analytics.json). Approved Nov 17 with these decisions: (1) one problem, one place: DATA-01 judges what the manifest LISTS; the deduction judges what is ACTUALLY used. (2) DATA-03 judges only that license terms are present and specific; whether they are TRUE goes to the V4 human checklist (the judge cannot browse; memory of licenses is not evidence). (3) DATA-02 met = at most 2 of 15 fields missing per entry. (4) Invented-looking sample content gives an integrity note only, not a verdict change (the judge cannot prove where a sample came from). Left OUT: 'DBLP not actually processed' (human checklist).",
+  "readme_commit": "a139f4a",
+  "category_id": "dataset_engineering",
+  "category_name": "Dataset engineering",
+  "rubric_points": 1.0,
+  "readme_full_credit": "DBLP plus at least three real linked datasets, manifest, licenses, checksums, schemas, and bounded scripts",
+  "items": [
+    {
+      "id": "DATA-01",
+      "text": "Dataset portfolio as listed. met: datasets/dataset-manifest.yaml lists DBLP plus at least three additional real public scholarly datasets, each with a stated purpose or analytical role. partial: DBLP plus one or two additional datasets, or roles missing. missing: no manifest, or DBLP absent. Judge only what the manifest lists here; whether each dataset is actually used is the deduction DATASETS-FEWER-THAN-THREE.",
+      "source": "'Dataset portfolio': DBLP is mandatory, at least three additional datasets; Phase 3: 'Create datasets/dataset-manifest.yaml for DBLP and every selected enrichment dataset'"
+    },
+    {
+      "id": "DATA-02",
+      "text": "Manifest descriptive fields. Each dataset entry should give these 15 (field names may differ; judge meaning): name and purpose, official source and documentation links, snapshot or retrieval date, retrieval command or script, file format and compression, expected and observed size, S3 raw prefix, schema version, selected subset rule, incremental update strategy, linkage fields, personal data and privacy considerations, known omissions or limitations, validation commands, owning agent. Placeholders (TBD, YYYY-MM-DD, <...>, empty values) count as missing. met: every entry is missing at most 2 of the 15. partial: entries exist but at least one entry is missing more than 2. missing: no manifest entries. Licenses and checksums are judged in DATA-03 and DATA-04, not here.",
+      "source": "'Dataset manifest': each dataset entry must contain ...; 'The dataset manifest must record actual availability, snapshot dates, ... A dead endpoint is not a dataset strategy.'"
+    },
+    {
+      "id": "DATA-03",
+      "text": "Licenses. met: every dataset entry names concrete license or reuse terms (a named license such as 'CC0 1.0' or 'ODC-BY 1.0', or the provider's named terms) and gives a link to those terms. partial: only some datasets, or vague wording ('open', 'free for research', 'public') without named terms. missing: no license information. Judge presence and specificity only; do not judge whether a stated license is correct for that dataset (a human checks that).",
+      "source": "Manifest field 'License or reuse terms'; rubric 'licenses'; Phase 3 gate: 'no dataset license, identifier, or source is invented' (truth -> human checklist)"
+    },
+    {
+      "id": "DATA-04",
+      "text": "Integrity records. met: every dataset has a SHA-256 value or checksum file, an ETag policy, or an equivalent stated integrity rule, plus a validation command that uses it (for example 'sha256sum -c ...' or a script step that compares checksums). partial: only some datasets, or integrity fields that are placeholders, or no validation command uses them. missing: no integrity records.",
+      "source": "Manifest field 'SHA-256 checksum, ETag policy, or equivalent integrity record' and 'Validation commands'; rubric 'checksums'"
+    },
+    {
+      "id": "DATA-05",
+      "text": "Schema notes. met: files under datasets/schemas describe, for DBLP and each enrichment dataset, the fields used with their types or meanings, a schema version, and which fields are linkage keys. partial: only some datasets, or field names without types or meanings. missing: no schema notes.",
+      "source": "Phase 3: 'Create schema notes under datasets/schemas'; manifest fields 'Schema version' and 'Linkage fields'; rubric 'schemas'"
+    },
+    {
+      "id": "DATA-06",
+      "text": "Bounded, idempotent retrieval scripts. Judge by reading the scripts; they are never run. met: download and sample-generation scripts under datasets/scripts cover every dataset in the manifest; by default each fetches a bounded subset (an explicit size, record or file limit, with a full corpus only behind an explicit flag or confirmation); and running a script again does not repeat or corrupt finished work (for example it skips existing files or verifies checksums). partial: only some datasets, or no visible default bound, or no visible idempotency. missing: no retrieval scripts.",
+      "source": "Phase 3: 'Create bounded download and sample-generation scripts under datasets/scripts', 'Scripts must be idempotent and must not download a full corpus by default'; gate: 'Sample scripts do not silently fetch large files'"
+    },
+    {
+      "id": "DATA-07",
+      "text": "Sample files. met: small sample files under datasets/samples for DBLP and each enrichment dataset, whose structure matches that dataset's schema notes or source format. partial: samples for only some datasets, or samples whose structure does not match the schema notes. missing: no samples. If sample content looks invented (placeholder names, fake identifiers such as 10.1234/...), keep the verdict and add an integrity note; you cannot prove where a sample came from.",
+      "source": "Phase 3: 'Create representative legal sample files under datasets/samples, small enough for the repository'; deliverable D05; final report 'A dataset manifest and actual source samples'"
+    },
+    {
+      "id": "DATA-08",
+      "text": "Dataset validation. A check counts only if it asserts specific expected outcomes. met: a test or validation script checks the manifest beyond parsing: required fields present, checksum or integrity format, and that each dataset has its sample and schema (or equivalent checks). partial: it only checks that the manifest parses or that files exist. missing: no dataset or manifest validation.",
+      "source": "Agent table: dataset-engineer verification 'Dataset validation tests and manifest review'; Phase 3 gate: 'Dataset manifest validation passes'"
+    }
+  ],
+  "deductions": [
+    {
+      "id": "DATASETS-FEWER-THAN-THREE",
+      "max_points": 2,
+      "quote": "Fewer than three actual enrichment datasets: up to 2 points lost. (Judge here: an enrichment dataset counts as actual when it has a manifest entry, a retrieval or sample script, a sample file, and pipeline code outside datasets/ (for example a normalizer, parser or loader) that reads its records; the retrieval and sample scripts under datasets/ do not count as that code. Being listed in the manifest alone does not count; listing is judged in DATA-01. Whether the datasets were processed in a real run cannot be confirmed from the repository; a human checks that.)"
+    }
+  ],
+  "evidence": {
+    "_about": "See pack.py. V1's index stores the manifest as one path, so dataset files are selected by path. Order matters (pack is capped at max_files): manifest, schemas, scripts, samples, tests, code that names a dataset, phase 3 reports. Compressed samples (.gz) are left out of the pack; the judge may still Glob for them.",
+    "sources": [
+      {
+        "tracked_contains": "dataset-manifest",
+        "suffixes": [".yaml", ".yml"]
+      },
+      {
+        "tracked_contains": "datasets/schemas",
+        "suffixes": [".md", ".json", ".yaml", ".yml", ".txt", ".avsc", ".dtd", ".xsd"]
+      },
+      {
+        "tracked_contains": "datasets/scripts",
+        "suffixes": [".sh", ".py", ".scala", ".sc"]
+      },
+      {
+        "tracked_contains": "datasets/samples",
+        "suffixes": [".xml", ".json", ".jsonl", ".ndjson", ".csv", ".tsv", ".txt"]
+      },
+      {
+        "tracked_contains": "datasets/",
+        "suffixes": [".md"]
+      },
+      {
+        "key": ["tests", "files"],
+        "contains": "dataset"
+      },
+      {
+        "key": ["tests", "files"],
+        "contains": "manifest"
+      },
+      {"tracked_contains": "openalex"},
+      {"tracked_contains": "orcid"},
+      {"tracked_contains": "crossref"},
+      {"tracked_contains": "semantic"},
+      {"tracked_contains": "opencitations"},
+      {"tracked_contains": "arxiv"},
+      {"tracked_contains": "s2orc"},
+      {"tracked_contains": "paperswithcode"}
+    ],
+    "phases": [3],
+    "max_files": 60
+  },
+  "v1_links": [
+    {
+      "item": "DATA-01",
+      "if_verdict": ["met"],
+      "check": "M02",
+      "if_status": ["FAIL"],
+      "note": "V1 M02 found fewer than DBLP plus three datasets in the manifest (or no DBLP)"
+    },
+    {
+      "item": "DATA-07",
+      "if_verdict": ["met", "partial"],
+      "check": "M03",
+      "if_status": ["FAIL"],
+      "note": "V1 M03 found datasets/scripts, datasets/samples or datasets/schemas missing or empty"
+    }
+  ],
+  "always_human": []
+}
